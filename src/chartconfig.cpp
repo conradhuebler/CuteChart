@@ -17,7 +17,7 @@
  *
  */
 
-#include "src/global_config.h"
+#include <QtGlobal>
 
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>

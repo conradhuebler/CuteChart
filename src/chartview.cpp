@@ -234,12 +234,11 @@ void ChartView::setUi()
     connect(m_chartconfigdialog, &ChartConfigDialog::ConfigChanged, this, [this](const ChartConfig& config) {
         this->setChartConfig(config);
         this->WriteSettings(config);
-        emit ConfigurationChanged(); // Instance::GlobalInstance()->ConfigurationChanged(m_name);
+        emit ConfigurationChanged();
     });
     connect(m_chartconfigdialog, SIGNAL(ScaleAxis()), this, SLOT(forceformatAxis()));
     connect(m_chartconfigdialog, SIGNAL(ResetFontConfig()), this, SLOT(ResetFontConfig()));
 
-    //connect(Instance::GlobalInstance(), &Instance::ConfigurationChanged, this, &ChartView::ConfigurationChanged);
     ApplyConfigurationChange();
 
     connect(m_chart_private, &ChartViewPrivate::LockZoom, this, [this]() {

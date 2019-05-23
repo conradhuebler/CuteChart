@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(CuteChart)
-# set the module path
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
-
+project(cutechart)
 
 # As moc files are generated in the binary dir, tell CMake
 # to always look for includes there:
@@ -32,16 +29,17 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
 find_package(Qt5Widgets CONFIG REQUIRED)
-find_package(Qt5PrintSupport CONFIG REQUIRED)
 find_package(Qt5Charts CONFIG REQUIRED)
 
-set(charts_SRC
-    peakcallout.cpp
-    chartconfig.cpp
-    chartview.cpp
-    listchart.cpp
-    series.cpp
+set(cutechart_SRC
+    src/peakcallout.cpp
+    src/chartconfig.cpp
+    src/chartview.cpp
+    src/listchart.cpp
+    src/series.cpp
     )
 
-add_library(cutechart ${charts_SRC})
+add_library(cutechart ${cutechart_SRC})
+set_property(TARGET cutechart PROPERTY CXX_STANDARD 14)
+
 target_link_libraries(cutechart Qt5::Core Qt5::Widgets Qt5::Charts)
