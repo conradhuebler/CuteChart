@@ -21,6 +21,7 @@
 
 #include "chartconfig.h"
 
+#include <QtCharts/QAreaSeries>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
@@ -45,36 +46,100 @@ struct PgfPlotConfig {
 class ChartViewPrivate : public QtCharts::QChartView {
     Q_OBJECT
 public:
-    inline ChartViewPrivate(QWidget* parent = Q_NULLPTR)
-        : QtCharts::QChartView(parent)
-    {
-        setRubberBand(QChartView::RectangleRubberBand);
-    }
     inline ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent = Q_NULLPTR)
         : QtCharts::QChartView(parent)
+        , m_vertical_line_visible(false)
     {
         setChart(chart);
         setAcceptDrops(true);
         setRenderHint(QPainter::Antialiasing, true);
         setRubberBand(QChartView::RectangleRubberBand);
+        addVerticalSeries();
         /*QFont font = chart->titleFont();
         font.setBold(true);
         font.setPointSize(12);
         chart->setTitleFont(font);*/
     }
-    inline ~ChartViewPrivate() {}
+
+    inline ~ChartViewPrivate() override {}
+
+public slots:
+    inline void UpdateVerticalLine(double x)
+    {
+        m_vertical_series->replace(0, QPointF(x, m_min));
+        m_vertical_series->replace(1, QPointF(x, m_max));
+        m_vertical_series->setName(QString::number(x, 'f', 4));
+    }
+
+    inline void UpdateView(double min, double max)
+    {
+        m_min = min;
+        m_max = max;
+    }
+
+    void UpdateSelectionChart(const QPointF& point);
+
+    inline void setVerticalLineEnabled(bool enabled)
+    {
+        m_vertical_series->setVisible(enabled);
+        m_vertical_line_visible = enabled;
+    }
 
 protected:
     virtual void mousePressEvent(QMouseEvent* event) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
-    void dragEnterEvent(QDragEnterEvent* event) override;
-    void dragMoveEvent(QDragMoveEvent* event) override;
-    void keyPressEvent(QKeyEvent* event) override;
+    virtual void mouseMoveEvent(QMouseEvent* event) override;
+    virtual void wheelEvent(QWheelEvent* event) override;
+    virtual void keyPressEvent(QKeyEvent* event) override;
+    virtual void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
+    inline void addVerticalSeries()
+    {
+        m_vertical_series = new QtCharts::QLineSeries;
+        QPen pen = m_vertical_series->pen();
+        pen.setWidth(1);
+        pen.setColor(Qt::gray);
+        m_vertical_series->setPen(pen);
+        QPointF start = QPointF(0, -1);
+        QPointF end = QPointF(0, 10);
+
+        m_vertical_series->append(start);
+        m_vertical_series->append(end);
+        chart()->addSeries(m_vertical_series);
+        m_vertical_series->setVisible(m_vertical_line_visible);
+        //chart()->legend()->markers(m_vertical_series).first()->setVisible(false);
+
+        m_upper = new QtCharts::QLineSeries;
+        m_upper->append(0, 0);
+        m_upper->append(0, 0);
+        m_lower = new QtCharts::QLineSeries;
+        m_lower->append(0, 0);
+        m_lower->append(0, 0);
+
+        m_area = new QtCharts::QAreaSeries(m_upper, m_lower);
+
+        chart()->addSeries(m_area);
+        m_area->hide();
+    }
+
+    void handleMouseMoved(const QPointF& point);
+
+    QtCharts::QLineSeries *m_vertical_series, *m_upper, *m_lower;
+    QtCharts::QAreaSeries* m_area;
+
+    QPointF rect_start;
+    double m_min, m_max;
+    bool m_double_clicked, m_vertical_line_visible = false;
+
 signals:
     void LockZoom();
     void UnLockZoom();
+    void ZoomChanged();
+    void scaleUp();
+    void scaleDown();
+    void AddRect(const QPointF& point1, const QPointF& point2);
+    void PointDoubleClicked(const QPointF& point);
 };
 
 class ChartView : public QScrollArea {
@@ -83,7 +148,11 @@ public:
     ChartView();
     ~ChartView() override;
 
+    void setSelectionStrategie(int strategy);
+
     void addSeries(QtCharts::QAbstractSeries* series, bool callout = false);
+
+    void setAnimationEnabled(bool animation);
 
     qreal YMax() const { return m_ymax; }
     inline void removeSeries(QtCharts::QAbstractSeries* series) { m_chart->removeSeries(series); }
@@ -177,6 +246,11 @@ public:
     QPointer<QtCharts::QValueAxis> axisY() const { return m_YAxis; }
     QPointer<QtCharts::QValueAxis> axisX() const { return m_XAxis; }
 
+    inline void setVerticalLineEnabled(bool enabled)
+    {
+        m_chart_private->setVerticalLineEnabled(enabled);
+    }
+
 public slots:
     void formatAxis();
 
@@ -240,6 +314,10 @@ signals:
     void ConfigurationChanged();
     void LastDirChanged(const QString& dir);
     void PointDoubleClicked(const QPointF& point);
+    void ZoomChanged();
+    void scaleUp();
+    void scaleDown();
+    void AddRect(const QPointF& point1, const QPointF& point2);
 
 protected:
     virtual void resizeEvent(QResizeEvent* event) override;

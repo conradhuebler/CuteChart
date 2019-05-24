@@ -24,6 +24,7 @@
 
 #include <QtCharts/QAreaSeries>
 #include <QtCharts/QChart>
+#include <QtCharts/QChartView>
 #include <QtCharts/QLegendMarker>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
@@ -52,71 +53,103 @@
 
 void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
 {
-    if (event->button() == Qt::MiddleButton || event->buttons() == Qt::MiddleButton) {
-        QImage image(scene()->sceneRect().size().toSize(), QImage::Format_ARGB32);
-        image.fill(Qt::transparent);
-        QPainter painter(&image);
-        painter.setRenderHint(QPainter::Antialiasing);
-        scene()->render(&painter);
-        QPixmap pixmap = QPixmap::fromImage(image);
-        QByteArray itemData;
-        QBuffer outputBuffer(&itemData);
-
-        outputBuffer.open(QIODevice::WriteOnly);
-        pixmap.toImage().save(&outputBuffer, "PNG");
-
-        QMimeData* mimeData = new QMimeData;
-        mimeData->setData("image/png", itemData);
-
-        QDrag* drag = new QDrag(this);
-        drag->setMimeData(mimeData);
-        drag->setPixmap(pixmap);
-        drag->setHotSpot(event->pos());
-
-        drag->exec(Qt::CopyAction);
-    } else if (event->button() == Qt::RightButton)
-        event->ignore();
-    else
+    if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
+        if (m_double_clicked) {
+            m_double_clicked = false;
+            QPointF inPoint;
+            QPointF chartPoint;
+            inPoint.setX(event->x());
+            inPoint.setY(event->y());
+            chartPoint = chart()->mapToValue(inPoint);
+            m_vertical_series->show();
+            m_area->hide();
+            emit AddRect(rect_start, chartPoint);
+        }
+    } else
         QChartView::mousePressEvent(event);
+    event->ignore();
+}
+
+void ChartViewPrivate::wheelEvent(QWheelEvent* event)
+{
+    if (event->angleDelta().y() < 0)
+        emit scaleDown();
+    else
+        emit scaleUp();
+
+    QPointF inPoint;
+    QPointF chartPoint;
+    inPoint.setX(event->x());
+    inPoint.setY(event->y());
+    chartPoint = chart()->mapToValue(inPoint);
+
+    event->ignore();
+}
+
+void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
+{
+    if (!this->chart()->axisX() || !this->chart()->axisY()) {
+        return;
+    }
+    QPointF inPoint;
+    QPointF chartPoint;
+    inPoint.setX(event->x());
+    inPoint.setY(event->y());
+    chartPoint = chart()->mapToValue(inPoint);
+    handleMouseMoved(chartPoint);
+    QChartView::mouseMoveEvent(event);
+}
+
+void ChartViewPrivate::handleMouseMoved(const QPointF& point)
+{
+    if (m_double_clicked)
+        UpdateSelectionChart(point);
+    else
+        UpdateVerticalLine(point.x());
+}
+
+void ChartViewPrivate::UpdateSelectionChart(const QPointF& point)
+{
+    m_upper->replace(1, point.x(), rect_start.y());
+    m_lower->replace(0, rect_start.x(), point.y());
+    m_lower->replace(1, point);
 }
 
 void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
 {
-    if (event->button() == Qt::RightButton) {
+    if (event->button() == Qt::MiddleButton || event->buttons() == Qt::MiddleButton) {
         chart()->zoomReset();
-        emit UnLockZoom();
-    } else {
+        emit ZoomChanged();
+    } else if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
+
+    } else
         QChartView::mouseReleaseEvent(event);
-        emit LockZoom();
-    }
 }
 
-void ChartViewPrivate::dragEnterEvent(QDragEnterEvent* event)
+void ChartViewPrivate::mouseDoubleClickEvent(QMouseEvent* event)
 {
-    if (event->mimeData()->hasFormat("image/png")) {
-        if (event->source() == this) {
-            event->setDropAction(Qt::CopyAction);
-            event->accept();
-        } else {
-            event->acceptProposedAction();
-        }
-    } else {
-        event->ignore();
-    }
-}
+    if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
+        m_double_clicked = true;
+        QPointF inPoint;
+        QPointF chartPoint;
+        inPoint.setX(event->x());
+        inPoint.setY(event->y());
+        rect_start = chart()->mapToValue(inPoint);
+        m_upper->replace(0, rect_start);
+        m_upper->replace(1, rect_start);
+        m_lower->replace(0, rect_start);
+        m_lower->replace(1, rect_start);
+        m_vertical_series->hide();
+        m_area->show();
 
-void ChartViewPrivate::dragMoveEvent(QDragMoveEvent* event)
-{
-    if (event->mimeData()->hasFormat("image/png")) {
-        if (event->source() == this) {
-            event->setDropAction(Qt::CopyAction);
-            event->accept();
-        } else {
-            event->acceptProposedAction();
-        }
-    } else {
+    } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
+        QPointF inPoint;
+        QPointF chartPoint;
+        inPoint.setX(event->x());
+        inPoint.setY(event->y());
+        emit PointDoubleClicked(chart()->mapToValue(inPoint));
+    } else
         event->ignore();
-    }
 }
 
 void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
@@ -124,9 +157,11 @@ void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
     switch (event->key()) {
     case Qt::Key_Plus:
         chart()->zoomIn();
+        emit ZoomChanged();
         break;
     case Qt::Key_Minus:
         chart()->zoomOut();
+        emit ZoomChanged();
         break;
     case Qt::Key_Left:
         chart()->scroll(-10, 0);
@@ -145,7 +180,6 @@ void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
         break;
     }
 }
-
 ChartView::ChartView()
     : has_legend(false)
     , connected(false)
@@ -157,6 +191,12 @@ ChartView::ChartView()
     m_chart = new QtCharts::QChart();
     m_chart_private = new ChartViewPrivate(m_chart, this);
 
+    connect(m_chart_private, SIGNAL(ZoomChanged()), this, SIGNAL(ZoomChanged()));
+    connect(m_chart_private, SIGNAL(scaleDown()), this, SIGNAL(scaleDown()));
+    connect(m_chart_private, SIGNAL(scaleUp()), this, SIGNAL(scaleUp()));
+    connect(m_chart_private, SIGNAL(AddRect(const QPointF&, const QPointF&)), this, SIGNAL(AddRect(const QPointF&, const QPointF&)));
+    connect(m_chart_private, &ChartViewPrivate::PointDoubleClicked, this, &ChartView::PointDoubleClicked);
+
     m_chart->legend()->setVisible(false);
     m_chart->legend()->setAlignment(Qt::AlignRight);
     setUi();
@@ -167,6 +207,22 @@ ChartView::~ChartView()
     //WriteSettings(m_last_config);
 
     qDeleteAll(m_peak_anno);
+}
+
+void ChartView::setSelectionStrategie(int strategy)
+{
+    if (strategy == 1)
+        m_chart_private->setRubberBand(QtCharts::QChartView::RectangleRubberBand);
+    else if (strategy == 2)
+        m_chart_private->setRubberBand(QtCharts::QChartView::HorizontalRubberBand);
+}
+
+void ChartView::setAnimationEnabled(bool animation)
+{
+    if (!animation)
+        m_chart->setAnimationOptions(QtCharts::QChart::NoAnimation);
+    else
+        m_chart->setAnimationOptions(QtCharts::QChart::SeriesAnimations);
 }
 
 void ChartView::setUi()
