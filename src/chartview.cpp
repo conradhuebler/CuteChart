@@ -146,23 +146,6 @@ void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
     }
 }
 
-/*
-ChartView::ChartView(QtCharts::QChart* chart)
-    : m_chart_private(new ChartViewPrivate(chart, this))
-    , m_chart(chart)
-    , has_legend(false)
-    , connected(false)
-    , m_x_axis(QString())
-    , m_y_axis(QString())
-    , m_pending(false)
-    , m_lock_scaling(false)
-    , m_ymax(0)
-{
-    m_chart->legend()->setVisible(false);
-    m_chart->legend()->setAlignment(Qt::AlignRight);
-    setUi();
-}
-*/
 ChartView::ChartView()
     : has_legend(false)
     , connected(false)
@@ -269,7 +252,7 @@ QtCharts::QLineSeries* ChartView::addLinearSeries(qreal m, qreal n, qreal min, q
     return series;
 }
 
-void ChartView::addSeries(QPointer<QtCharts::QAbstractSeries> series, bool callout)
+void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
 {
     if (!m_chart->series().contains(series) || !series) {
         QPointer<QtCharts::QXYSeries> serie = qobject_cast<QtCharts::QXYSeries*>(series);

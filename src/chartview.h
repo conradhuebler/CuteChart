@@ -80,10 +80,11 @@ signals:
 class ChartView : public QScrollArea {
     Q_OBJECT
 public:
-    //ChartView(QtCharts::QChart* chart);
     ChartView();
-    ~ChartView();
-    void addSeries(QPointer<QtCharts::QAbstractSeries>, bool callout = false);
+    ~ChartView() override;
+
+    void addSeries(QtCharts::QAbstractSeries* series, bool callout = false);
+
     qreal YMax() const { return m_ymax; }
     inline void removeSeries(QtCharts::QAbstractSeries* series) { m_chart->removeSeries(series); }
     inline QList<QtCharts::QAbstractSeries*> series() const { return m_chart->series(); }
@@ -130,11 +131,39 @@ public:
         }
     }
 
+    inline void setXMax(qreal xmax)
+    {
+        if (m_hasAxis) {
+            m_XAxis->setMax(xmax);
+        }
+    }
+
+    inline void setXMin(qreal xmin)
+    {
+        if (m_hasAxis) {
+            m_XAxis->setMin(xmin);
+        }
+    }
+
     inline void setYRange(qreal ymin, qreal ymax)
     {
         if (m_hasAxis) {
             m_YAxis->setMin(ymin);
             m_YAxis->setMax(ymax);
+        }
+    }
+
+    inline void setYMax(qreal ymax)
+    {
+        if (m_hasAxis) {
+            m_YAxis->setMax(ymax);
+        }
+    }
+
+    inline void setYMin(qreal ymin)
+    {
+        if (m_hasAxis) {
+            m_YAxis->setMin(ymin);
         }
     }
 
@@ -210,6 +239,7 @@ signals:
     void ChartCleared();
     void ConfigurationChanged();
     void LastDirChanged(const QString& dir);
+    void PointDoubleClicked(const QPointF& point);
 
 protected:
     virtual void resizeEvent(QResizeEvent* event) override;
