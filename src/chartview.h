@@ -26,6 +26,7 @@
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
 
+#include <QtCore/QDebug>
 #include <QtCore/QPointer>
 
 #include <QtWidgets/QScrollArea>
@@ -130,7 +131,7 @@ private:
 
     QPointF rect_start;
     double m_min, m_max;
-    bool m_double_clicked, m_vertical_line_visible = false;
+    bool m_double_clicked = false, m_vertical_line_visible = false;
 
 signals:
     void LockZoom();
@@ -197,6 +198,7 @@ public:
         if (m_hasAxis) {
             m_XAxis->setMin(xmin);
             m_XAxis->setMax(xmax);
+            qDebug() << xmin << xmax;
         }
     }
 
@@ -219,6 +221,7 @@ public:
         if (m_hasAxis) {
             m_YAxis->setMin(ymin);
             m_YAxis->setMax(ymax);
+            m_chart_private->UpdateView(ymin, ymax);
         }
     }
 
@@ -250,6 +253,8 @@ public:
     {
         m_chart_private->setVerticalLineEnabled(enabled);
     }
+
+    inline void setFont(const QString& font) { m_font = font; }
 
 public slots:
     void formatAxis();
@@ -301,6 +306,7 @@ private:
     int m_x_size = 0, m_y_size = 0, m_scaling = 0;
     qreal m_lineWidth = 4, m_markerSize = 8;
 
+    QString m_font;
 private slots:
     void PlotSettings();
     void ExportPNG();
