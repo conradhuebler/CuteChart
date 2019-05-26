@@ -21,6 +21,8 @@
 
 #include "chartconfig.h"
 
+#include <QtWidgets/QGraphicsTextItem>
+
 #include <QtCharts/QAreaSeries>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
@@ -38,11 +40,6 @@ class QChart;
 class PeakCallOut;
 
 struct ChartConfig;
-struct PgfPlotConfig {
-    QString colordefinition;
-    QString plots;
-    QStringList table;
-};
 
 class ChartViewPrivate : public QtCharts::QChartView {
     Q_OBJECT
@@ -55,36 +52,33 @@ public:
         setAcceptDrops(true);
         setRenderHint(QPainter::Antialiasing, true);
         setRubberBand(QChartView::RectangleRubberBand);
-        addVerticalSeries();
         /*QFont font = chart->titleFont();
         font.setBold(true);
         font.setPointSize(12);
         chart->setTitleFont(font);*/
+
+        m_vertical_line = new QGraphicsLineItem(chart);
+        QPen pen;
+        pen.setWidth(1);
+        pen.setColor(Qt::gray);
+        m_vertical_line->setPen(pen);
+        m_vertical_line->setLine(0, -1, 0, 10);
+        m_vertical_line->show();
+
+        m_line_position = new QGraphicsTextItem(chart);
+        m_select_box = new QGraphicsRectItem(chart);
     }
 
     inline ~ChartViewPrivate() override {}
 
 public slots:
-    inline void UpdateVerticalLine(double x)
-    {
-        m_vertical_series->replace(0, QPointF(x, m_min));
-        m_vertical_series->replace(1, QPointF(x, m_max));
-        m_vertical_series->setName(QString::number(x, 'f', 4));
-    }
+    void UpdateVerticalLine(double x);
 
-    inline void UpdateView(double min, double max)
-    {
-        m_min = min;
-        m_max = max;
-    }
+    void UpdateView(double min, double max);
 
     void UpdateSelectionChart(const QPointF& point);
 
-    inline void setVerticalLineEnabled(bool enabled)
-    {
-        m_vertical_series->setVisible(enabled);
-        m_vertical_line_visible = enabled;
-    }
+    void setVerticalLineEnabled(bool enabled);
 
 protected:
     virtual void mousePressEvent(QMouseEvent* event) override;
@@ -95,41 +89,13 @@ protected:
     virtual void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
-    inline void addVerticalSeries()
-    {
-        m_vertical_series = new QtCharts::QLineSeries;
-        QPen pen = m_vertical_series->pen();
-        pen.setWidth(1);
-        pen.setColor(Qt::gray);
-        m_vertical_series->setPen(pen);
-        QPointF start = QPointF(0, -1);
-        QPointF end = QPointF(0, 10);
+    void handleMouseMoved(const QPointF& ChartPoint, const QPointF& WidgetPoint);
 
-        m_vertical_series->append(start);
-        m_vertical_series->append(end);
-        chart()->addSeries(m_vertical_series);
-        m_vertical_series->setVisible(m_vertical_line_visible);
-        //chart()->legend()->markers(m_vertical_series).first()->setVisible(false);
+    QGraphicsLineItem* m_vertical_line;
+    QGraphicsTextItem* m_line_position;
+    QGraphicsRectItem* m_select_box;
 
-        m_upper = new QtCharts::QLineSeries;
-        m_upper->append(0, 0);
-        m_upper->append(0, 0);
-        m_lower = new QtCharts::QLineSeries;
-        m_lower->append(0, 0);
-        m_lower->append(0, 0);
-
-        m_area = new QtCharts::QAreaSeries(m_upper, m_lower);
-
-        chart()->addSeries(m_area);
-        m_area->hide();
-    }
-
-    void handleMouseMoved(const QPointF& point);
-
-    QtCharts::QLineSeries *m_vertical_series, *m_upper, *m_lower;
-    QtCharts::QAreaSeries* m_area;
-
-    QPointF rect_start;
+    QPointF m_rect_start;
     double m_min, m_max;
     bool m_double_clicked = false, m_vertical_line_visible = false;
 
@@ -198,7 +164,6 @@ public:
         if (m_hasAxis) {
             m_XAxis->setMin(xmin);
             m_XAxis->setMax(xmax);
-            qDebug() << xmin << xmax;
         }
     }
 
@@ -284,8 +249,6 @@ private:
     bool has_legend, connected, m_hasAxis = false;
     QString m_x_axis, m_y_axis;
     ChartConfig getChartConfig() const;
-    PgfPlotConfig getScatterTable() const;
-    PgfPlotConfig getLineTable() const;
     QString Color2RGB(const QColor& color) const;
     void WriteTable(const QString& str);
     ChartConfigDialog* m_chartconfigdialog;

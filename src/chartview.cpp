@@ -51,6 +51,19 @@
 
 #include "chartview.h"
 
+void ChartViewPrivate::UpdateView(double min, double max)
+{
+    m_min = min;
+    m_max = max;
+}
+
+void ChartViewPrivate::setVerticalLineEnabled(bool enabled)
+{
+    m_line_position->setVisible(enabled);
+    m_vertical_line->setVisible(enabled);
+    m_vertical_line_visible = enabled;
+}
+
 void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
@@ -61,9 +74,15 @@ void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
             inPoint.setX(event->x());
             inPoint.setY(event->y());
             chartPoint = chart()->mapToValue(inPoint);
-            m_vertical_series->show();
-            m_area->hide();
-            emit AddRect(rect_start, chartPoint);
+
+            if (QRectF(m_rect_start, inPoint).isValid())
+                AddRect(chart()->mapToValue(m_rect_start), chart()->mapToValue(inPoint));
+            else
+                AddRect(chart()->mapToValue(inPoint), chart()->mapToValue(m_rect_start));
+
+            m_select_box->hide();
+            m_vertical_line->show();
+            m_line_position->show();
         }
     } else
         QChartView::mousePressEvent(event);
@@ -88,31 +107,45 @@ void ChartViewPrivate::wheelEvent(QWheelEvent* event)
 
 void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
 {
-    if (!this->chart()->axisX() || !this->chart()->axisY()) {
+    if (this->chart()->axes(Qt::Horizontal).isEmpty() || this->chart()->axes(Qt::Vertical).isEmpty()) {
         return;
     }
-    QPointF inPoint;
+    QPointF widgetPoint;
     QPointF chartPoint;
-    inPoint.setX(event->x());
-    inPoint.setY(event->y());
-    chartPoint = chart()->mapToValue(inPoint);
-    handleMouseMoved(chartPoint);
+    widgetPoint.setX(event->x());
+    widgetPoint.setY(event->y());
+    chartPoint = chart()->mapToValue(widgetPoint);
+    handleMouseMoved(chartPoint, widgetPoint);
     QChartView::mouseMoveEvent(event);
 }
 
-void ChartViewPrivate::handleMouseMoved(const QPointF& point)
+void ChartViewPrivate::handleMouseMoved(const QPointF& ChartPoint, const QPointF& WidgetPoint)
 {
     if (m_double_clicked)
-        UpdateSelectionChart(point);
+        UpdateSelectionChart(WidgetPoint);
     else
-        UpdateVerticalLine(point.x());
+        UpdateVerticalLine(ChartPoint.x());
 }
 
 void ChartViewPrivate::UpdateSelectionChart(const QPointF& point)
 {
-    m_upper->replace(1, point.x(), rect_start.y());
-    m_lower->replace(0, rect_start.x(), point.y());
-    m_lower->replace(1, point);
+    QRectF rect;
+    if (QRectF(m_rect_start, point).isValid())
+        rect = QRectF(m_rect_start, point);
+    else
+        rect = QRectF(point, m_rect_start);
+    m_select_box->setRect(rect);
+}
+
+void ChartViewPrivate::UpdateVerticalLine(double x)
+{
+    QPointF start = chart()->mapToPosition(QPointF(x, m_min));
+    QPointF end = chart()->mapToPosition(QPointF(x, 0.95 * m_max));
+
+    m_vertical_line->setLine(start.x(), start.y(), end.x(), end.y());
+
+    m_line_position->setPos(chart()->mapToPosition(QPointF(x, 0.99 * m_max)));
+    m_line_position->setPlainText(QString::number(x, 'f', 4));
 }
 
 void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
@@ -131,20 +164,15 @@ void ChartViewPrivate::mouseDoubleClickEvent(QMouseEvent* event)
     if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
         m_double_clicked = true;
         QPointF inPoint;
-        QPointF chartPoint;
         inPoint.setX(event->x());
         inPoint.setY(event->y());
-        rect_start = chart()->mapToValue(inPoint);
-        m_upper->replace(0, rect_start);
-        m_upper->replace(1, rect_start);
-        m_lower->replace(0, rect_start);
-        m_lower->replace(1, rect_start);
-        m_vertical_series->hide();
-        m_area->show();
-
+        m_rect_start = inPoint;
+        m_select_box->setRect(m_rect_start.x(), m_rect_start.y(), 0, 0);
+        m_select_box->show();
+        m_vertical_line->hide();
+        m_line_position->hide();
     } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
         QPointF inPoint;
-        QPointF chartPoint;
         inPoint.setX(event->x());
         inPoint.setY(event->y());
         emit PointDoubleClicked(chart()->mapToValue(inPoint));
@@ -345,8 +373,8 @@ void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
         m_chart->addSeries(series);
         if (!m_hasAxis) {
             m_chart->createDefaultAxes();
-            m_XAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisX());
-            m_YAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisY());
+            m_XAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axes(Qt::Horizontal).first());
+            m_YAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axes(Qt::Vertical).first());
             m_hasAxis = true;
             ReadSettings();
         } else {
@@ -494,7 +522,7 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
     m_markerSize = chartconfig.markerSize;
     m_lineWidth = chartconfig.lineWidth;
 
-    QPointer<QtCharts::QValueAxis> m_XAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisX());
+    // m_XAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisX());
     if (m_XAxis) {
         m_XAxis->setTitleText(chartconfig.x_axis);
         m_XAxis->setTickCount(chartconfig.x_step);
@@ -504,7 +532,7 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
         m_XAxis->setLabelsFont(chartconfig.m_ticks);
         m_XAxis->setVisible(chartconfig.showAxis);
     }
-    QPointer<QtCharts::QValueAxis> m_YAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisY());
+    //QPointer<QtCharts::QValueAxis> m_YAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisY());
     if (m_YAxis) {
         m_YAxis->setTitleText(chartconfig.y_axis);
         m_YAxis->setTickCount(chartconfig.y_step);
@@ -667,68 +695,6 @@ QString ChartView::Color2RGB(const QColor& color) const
     return result;
 }
 
-PgfPlotConfig ChartView::getScatterTable() const
-{
-    PgfPlotConfig config;
-    QStringList table;
-    int i = 0;
-    for (QtCharts::QAbstractSeries* series : m_chart->series()) {
-        if (!qobject_cast<QtCharts::QScatterSeries*>(series))
-            continue;
-        QtCharts::QScatterSeries* serie = qobject_cast<QtCharts::QScatterSeries*>(series);
-        if (serie->isVisible()) {
-            QVector<QPointF> points = serie->pointsVector();
-            for (int i = 0; i < points.size(); ++i) {
-                if (i == table.size())
-                    table << QString::number(points[i].x());
-                table[i] += " " + QString::number(points[i].y());
-            }
-            QString definecolor;
-            definecolor = "\\definecolor{scatter" + QString::number(i) + "}{RGB}{" + Color2RGB(serie->color()) + "}";
-            config.colordefinition += definecolor + "\n";
-
-            QString defineplot;
-            defineplot = "\\addplot+[color = scatter" + QString::number(i) + ",only marks,mark = *,mark options={scale=0.75, fill=scatter" + QString::number(i) + "}]" + QString("table[x=0, y = %1] from \\scatter;").arg(QString::number(i + 1)) + "\n";
-            defineplot += "\\addlegendentry{" + serie->name() + "};";
-            config.plots += defineplot + "\n";
-            ++i;
-        }
-    }
-    config.table = table;
-    return config;
-}
-
-PgfPlotConfig ChartView::getLineTable() const
-{
-    PgfPlotConfig config;
-    QStringList table;
-    int i = 0;
-    for (QtCharts::QAbstractSeries* series : m_chart->series()) {
-        if (!qobject_cast<QtCharts::QLineSeries*>(series))
-            continue;
-        QtCharts::QLineSeries* serie = qobject_cast<QtCharts::QLineSeries*>(series);
-        if (serie->isVisible()) {
-            QVector<QPointF> points = serie->pointsVector();
-            for (int i = 0; i < points.size(); ++i) {
-                if (i == table.size())
-                    table << QString::number(points[i].x());
-                table[i] += " " + QString::number(points[i].y());
-            }
-            QString definecolor;
-            definecolor = "\\definecolor{line" + QString::number(i) + "}{RGB}{" + Color2RGB(serie->color()) + "}";
-            config.colordefinition += definecolor + "\n";
-
-            QString defineplot;
-            defineplot = "\\addplot+[color = line" + QString::number(i) + QString(",no marks, solid] table[x=0, y = %1] from \\lines;").arg(QString::number(i + 1)) + "\n";
-            defineplot += "\\addlegendentry{" + serie->name() + "};";
-            config.plots += defineplot + "\n";
-            ++i;
-        }
-    }
-    config.table = table;
-    return config;
-}
-
 void ChartView::ExportPNG()
 {
     const QString str = QFileDialog::getSaveFileName(this, tr("Save File"),
@@ -738,6 +704,8 @@ void ChartView::ExportPNG()
         return;
     emit LastDirChanged(str);
     // setLastDir(str);
+
+    m_chart_private->setVerticalLineEnabled(false);
 
     QtCharts::QChart::AnimationOptions animation = m_chart->animationOptions();
 
@@ -907,6 +875,8 @@ void ChartView::ExportPNG()
     QFile file(str);
     file.open(QIODevice::WriteOnly);
     pixmap.save(&file, "PNG");
+
+    m_chart_private->setVerticalLineEnabled(true);
 }
 
 void ChartView::ApplyConfigurationChange(const QString& str)
