@@ -41,63 +41,71 @@ class PeakCallOut;
 
 struct ChartConfig;
 
+enum ZoomStrategy {
+    Z_None = 0,
+    Z_Horizontal = 1,
+    Z_Vertical = 2,
+    Z_Rectangular = 3
+};
+
+enum SelectStrategy {
+    S_None = 0,
+    S_Horizontal = 1,
+    S_Vertical = 2,
+    S_Rectangular = 3
+};
+
 class ChartViewPrivate : public QtCharts::QChartView {
     Q_OBJECT
 public:
-    inline ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent = Q_NULLPTR)
-        : QtCharts::QChartView(parent)
-        , m_vertical_line_visible(false)
-    {
-        setChart(chart);
-        setAcceptDrops(true);
-        setRenderHint(QPainter::Antialiasing, true);
-        setRubberBand(QChartView::RectangleRubberBand);
-        /*QFont font = chart->titleFont();
-        font.setBold(true);
-        font.setPointSize(12);
-        chart->setTitleFont(font);*/
-
-        m_vertical_line = new QGraphicsLineItem(chart);
-        QPen pen;
-        pen.setWidth(1);
-        pen.setColor(Qt::gray);
-        m_vertical_line->setPen(pen);
-        m_vertical_line->setLine(0, -1, 0, 10);
-        m_vertical_line->show();
-
-        m_line_position = new QGraphicsTextItem(chart);
-        m_select_box = new QGraphicsRectItem(chart);
-    }
+    ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent = Q_NULLPTR);
 
     inline ~ChartViewPrivate() override {}
+
+    inline void setZoomStrategy(ZoomStrategy strategy) { m_zoom_strategy = strategy; }
+    inline void setSelectStrategy(SelectStrategy strategy) { m_select_strategy = strategy; }
+
+    inline ZoomStrategy CurrentZoomStrategy() const { return m_zoom_strategy; }
+    inline SelectStrategy CurrentSelectStrategy() const { return m_select_strategy; }
 
 public slots:
     void UpdateVerticalLine(double x);
 
     void UpdateView(double min, double max);
 
-    void UpdateSelectionChart(const QPointF& point);
-
     void setVerticalLineEnabled(bool enabled);
+
+    void setZoom(qreal x_min, qreal x_max, qreal y_min, qreal y_max);
+    void UpdateZoom();
 
 protected:
     virtual void mousePressEvent(QMouseEvent* event) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
     virtual void mouseMoveEvent(QMouseEvent* event) override;
     virtual void wheelEvent(QWheelEvent* event) override;
-    virtual void keyPressEvent(QKeyEvent* event) override;
+    // virtual void keyPressEvent(QKeyEvent* event) override;
     virtual void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
     void handleMouseMoved(const QPointF& ChartPoint, const QPointF& WidgetPoint);
 
+    void RectanglStart(QMouseEvent* event);
+    QPair<QPointF, QPointF> getCurrentRectangle(QMouseEvent* event);
+    QPointF mapToPoint(QMouseEvent* event);
+
+    void UpdateCorner();
+
     QGraphicsLineItem* m_vertical_line;
     QGraphicsTextItem* m_line_position;
     QGraphicsRectItem* m_select_box;
 
-    QPointF m_rect_start;
-    double m_min, m_max;
-    bool m_double_clicked = false, m_vertical_line_visible = false;
+    QPointF m_rect_start, m_upperleft, m_lowerright;
+    double m_x_min, m_x_max, m_y_min, m_y_max;
+
+    bool m_single_left_click = false, m_double_right_clicked = false, m_vertical_line_visible = false, m_rect_pending = false;
+
+    ZoomStrategy m_zoom_strategy;
+    SelectStrategy m_select_strategy;
 
 signals:
     void LockZoom();
@@ -106,16 +114,22 @@ signals:
     void scaleUp();
     void scaleDown();
     void AddRect(const QPointF& point1, const QPointF& point2);
+    void ZoomRect(const QPointF& point1, const QPointF& point2);
     void PointDoubleClicked(const QPointF& point);
 };
 
 class ChartView : public QScrollArea {
     Q_OBJECT
+
 public:
     ChartView();
     ~ChartView() override;
 
-    void setSelectionStrategie(int strategy);
+    inline void setZoomStrategy(ZoomStrategy strategy) { m_chart_private->setZoomStrategy(strategy); }
+    inline void setSelectStrategy(SelectStrategy strategy) { m_chart_private->setSelectStrategy(strategy); }
+
+    inline ZoomStrategy CurrentZoomStrategy() const { return m_chart_private->CurrentZoomStrategy(); }
+    inline SelectStrategy CurrentSelectStrategy() const { return m_chart_private->CurrentSelectStrategy(); }
 
     void addSeries(QtCharts::QAbstractSeries* series, bool callout = false);
 
@@ -238,6 +252,8 @@ public slots:
 
     void ApplyConfigurationChange(const QString& str = "noname");
 
+    void ZoomRect(const QPointF& point1, const QPointF& point2);
+
 private:
     QWidget* mCentralHolder;
 
@@ -246,7 +262,7 @@ private:
     QPointer<QtCharts::QChart> m_chart;
     QPushButton* m_config;
     void setUi();
-    bool has_legend, connected, m_hasAxis = false;
+    bool has_legend, connected, m_hasAxis = false, m_manual_zoom = false;
     QString m_x_axis, m_y_axis;
     ChartConfig getChartConfig() const;
     QString Color2RGB(const QColor& color) const;
