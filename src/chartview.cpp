@@ -155,8 +155,16 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
         emit ZoomChanged();
     } else if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
 
-    } else
+    } else {
         QChartView::mouseReleaseEvent(event);
+        if (chart()->axes(Qt::Vertical).isEmpty())
+            return;
+
+        QPointer<QtCharts::QValueAxis> yaxis = qobject_cast<QtCharts::QValueAxis*>(chart()->axes(Qt::Vertical).first());
+        if (!yaxis)
+            return;
+        UpdateView(yaxis->min(), yaxis->max());
+    }
 }
 
 void ChartViewPrivate::mouseDoubleClickEvent(QMouseEvent* event)
