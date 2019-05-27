@@ -177,7 +177,12 @@ void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
             m_rect_pending = false;
 
             QPair<QPointF, QPointF> rect = getCurrentRectangle(event);
-            AddRect(rect.first, rect.second);
+            qDebug() << chart()->mapToValue(rect.first) << chart()->mapToValue(rect.second);
+            qDebug() << chart()->mapToPosition(rect.first) << chart()->mapToPosition(rect.second);
+
+            qDebug() << (rect.first) << (rect.second);
+
+            AddRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
             m_select_box->hide();
             m_vertical_line->setVisible(m_vertical_line_visible);
             m_line_position->setVisible(m_vertical_line_visible);
@@ -246,6 +251,7 @@ void ChartViewPrivate::handleMouseMoved(const QPointF& ChartPoint, const QPointF
 
 void ChartViewPrivate::UpdateVerticalLine(double x)
 {
+    UpdateZoom();
     QPointF start = chart()->mapToPosition(QPointF(x, m_y_min));
     QPointF end = chart()->mapToPosition(QPointF(x, 0.95 * m_y_max));
 
@@ -324,35 +330,22 @@ void ChartViewPrivate::UpdateZoom()
     m_x_max = xaxis->max();
 }
 
-/*
 void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
 {
     switch (event->key()) {
-    case Qt::Key_Plus:
-        chart()->zoomIn();
-        emit ZoomChanged();
-        break;
-    case Qt::Key_Minus:
-        chart()->zoomOut();
-        emit ZoomChanged();
-        break;
-    case Qt::Key_Left:
-        chart()->scroll(-10, 0);
-        break;
-    case Qt::Key_Right:
-        chart()->scroll(10, 0);
-        break;
-    case Qt::Key_Up:
-        chart()->scroll(0, 10);
-        break;
-    case Qt::Key_Down:
-        chart()->scroll(0, -10);
+    case Qt::Key_Escape:
+        m_double_right_clicked = false;
+        m_rect_pending = false;
+        m_single_left_click = false;
+        m_select_box->hide();
+        m_vertical_line->setVisible(m_vertical_line_visible);
+        m_line_position->setVisible(m_vertical_line_visible);
         break;
     default:
         QGraphicsView::keyPressEvent(event);
         break;
     }
-}*/
+}
 
 ChartView::ChartView()
     : has_legend(false)
