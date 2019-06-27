@@ -237,6 +237,7 @@ public:
 
 public slots:
     void formatAxis();
+    void MinMaxScale();
 
     void setXAxis(const QString& str)
     {
