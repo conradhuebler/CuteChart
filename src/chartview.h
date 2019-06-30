@@ -68,6 +68,7 @@ public:
     inline ZoomStrategy CurrentZoomStrategy() const { return m_zoom_strategy; }
     inline SelectStrategy CurrentSelectStrategy() const { return m_select_strategy; }
 
+    inline bool isVerticalLineEnabled() const { return m_vertical_line_visible; }
 public slots:
     void UpdateVerticalLine(double x);
 

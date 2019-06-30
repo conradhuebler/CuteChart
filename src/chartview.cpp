@@ -926,6 +926,7 @@ void ChartView::ExportPNG()
     emit LastDirChanged(str);
     // setLastDir(str);
 
+    bool verticalline = m_chart_private->isVerticalLineEnabled();
     m_chart_private->setVerticalLineEnabled(false);
 
     QtCharts::QChart::AnimationOptions animation = m_chart->animationOptions();
@@ -1097,7 +1098,7 @@ void ChartView::ExportPNG()
     file.open(QIODevice::WriteOnly);
     pixmap.save(&file, "PNG");
 
-    m_chart_private->setVerticalLineEnabled(true);
+    m_chart_private->setVerticalLineEnabled(verticalline);
 }
 
 void ChartView::ApplyConfigurationChange(const QString& str)
