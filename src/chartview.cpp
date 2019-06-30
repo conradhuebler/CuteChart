@@ -37,6 +37,7 @@
 #include <QtCore/QSettings>
 #include <QtCore/QTextStream>
 
+#include <QtGui/QCursor>
 #include <QtGui/QDrag>
 
 #include <QtWidgets/QApplication>
@@ -76,6 +77,11 @@ ChartViewPrivate::ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent)
 
     m_line_position = new QGraphicsTextItem(chart);
     m_select_box = new QGraphicsRectItem(chart);
+    m_select_box->setBrush(QColor::fromRgbF(0.68, 0.68, 0.67, 1));
+
+    m_zoom_box = new QGraphicsRectItem(chart);
+    m_zoom_box->setBrush(QColor::fromRgbF(0.18, 0.64, 0.71, 1));
+    setMouseTracking(true);
 }
 
 void ChartViewPrivate::UpdateView(double min, double max)
@@ -86,24 +92,29 @@ void ChartViewPrivate::UpdateView(double min, double max)
 
 QPointF ChartViewPrivate::mapToPoint(QMouseEvent* event)
 {
+    return mapToPoint(QPointF(event->x(), event->y()));
+}
+
+QPointF ChartViewPrivate::mapToPoint(const QPointF& point)
+{
     QPointF inPoint;
     if ((CurrentZoomStrategy() == ZoomStrategy::Z_Rectangular && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Rectangular && m_double_right_clicked)) {
-        inPoint.setX(event->x());
-        inPoint.setY(event->y());
+        inPoint.setX(point.x());
+        inPoint.setY(point.y());
 
-    } else if ((CurrentZoomStrategy() == ZoomStrategy::Z_Horizontal && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Horizontal && m_double_right_clicked)) {
-        inPoint.setX(event->x());
-        if (m_rect_pending == false)
+    } else if ((CurrentZoomStrategy() == ZoomStrategy::Z_Horizontal && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Horizontal && m_single_right_click)) {
+        inPoint.setX(point.x());
+        if (m_zoom_pending == false || m_select_pending == false)
             inPoint.setY(m_upperleft.y());
         else
             inPoint.setY(m_lowerright.y());
 
-    } else if ((CurrentZoomStrategy() == ZoomStrategy::Z_Vertical && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Vertical && m_double_right_clicked)) {
-        if (m_rect_pending == false)
+    } else if ((CurrentZoomStrategy() == ZoomStrategy::Z_Vertical && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Vertical && m_single_right_click)) {
+        if (m_zoom_pending == false || m_select_pending == false)
             inPoint.setX(m_upperleft.x());
         else
             inPoint.setX(m_lowerright.x());
-        inPoint.setY(event->y());
+        inPoint.setY(point.y());
     }
     return inPoint;
 }
@@ -140,23 +151,29 @@ void ChartViewPrivate::RectanglStart(QMouseEvent* event)
 {
     QPointF inPoint = mapToPoint(event);
     m_rect_start = inPoint;
-    m_select_box->setRect(m_rect_start.x(), m_rect_start.y(), 0, 0);
-    m_select_box->show();
+
+    if (m_select_pending)
+        m_select_box->setRect(m_rect_start.x(), m_rect_start.y(), 0, 0);
+    else if (m_zoom_pending)
+        m_zoom_box->setRect(m_rect_start.x(), m_rect_start.y(), 0, 0);
+
     m_vertical_line->hide();
     m_line_position->hide();
-    m_rect_pending = true;
+    m_zoom_pending = true;
 }
 
 QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle(QMouseEvent* event)
 {
-    QPointF inPoint = mapToPoint(event);
-
+    QPointF inPoint = (mapFromGlobal(QCursor::pos())); //mapToPoint(event);
+    //qDebug() << m_rect_start << inPoint <<  mapToPoint(mapFromGlobal(QCursor::pos()));
     QPointF left, right;
     left.setX(qMin(inPoint.x(), m_rect_start.x()));
     right.setX(qMax(inPoint.x(), m_rect_start.x()));
 
     left.setY(qMin(inPoint.y(), m_rect_start.y()));
     right.setY(qMax(inPoint.y(), m_rect_start.y()));
+
+    // qDebug() << left << right;
 
     return QPair<QPointF, QPointF>(left, right);
 }
@@ -172,26 +189,19 @@ void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
     UpdateCorner();
 
     if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
-        if (m_double_right_clicked) {
-            m_double_right_clicked = false;
-            m_rect_pending = false;
-
-            QPair<QPointF, QPointF> rect = getCurrentRectangle(event);
-            qDebug() << chart()->mapToValue(rect.first) << chart()->mapToValue(rect.second);
-            qDebug() << chart()->mapToPosition(rect.first) << chart()->mapToPosition(rect.second);
-
-            qDebug() << (rect.first) << (rect.second);
-
-            AddRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
-            m_select_box->hide();
-            m_vertical_line->setVisible(m_vertical_line_visible);
-            m_line_position->setVisible(m_vertical_line_visible);
+        if (CurrentSelectStrategy() != SelectStrategy::S_None) {
+            if (!m_select_pending) {
+                m_single_right_click = true;
+                m_select_pending = true;
+                m_select_box->show();
+                RectanglStart(event);
+            }
         }
     } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
-
         if (CurrentZoomStrategy() != ZoomStrategy::Z_None) {
             m_single_left_click = true;
-            m_select_box->setBrush(QColor::fromRgbF(0.18, 0.64, 0.71, 1));
+            m_zoom_pending = true;
+            m_zoom_box->show();
             RectanglStart(event);
         }
 
@@ -219,18 +229,50 @@ void ChartViewPrivate::wheelEvent(QWheelEvent* event)
     event->ignore();
 }
 
+void ChartViewPrivate::setSelectBox(const QPointF& topleft, const QPointF& bottomright)
+{
+    m_border_start = chart()->mapToPosition(topleft);
+    m_border_end = chart()->mapToPosition(bottomright);
+
+    m_saved_zoom_strategy = m_zoom_strategy;
+    m_saved_select_strategy = m_select_strategy;
+
+    setSelectStrategy(SelectStrategy::S_Horizontal);
+    setZoomStrategy(ZoomStrategy::Z_None);
+
+    m_select_pending = true;
+    QRectF rect;
+    rect = QRectF(chart()->mapToPosition(topleft), chart()->mapToPosition(bottomright));
+    m_rect_start = chart()->mapToPosition(topleft);
+    m_select_box->setRect(rect);
+    m_select_box->show();
+}
+
 void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
 {
     if (this->chart()->axes(Qt::Horizontal).isEmpty() || this->chart()->axes(Qt::Vertical).isEmpty()) {
         return;
     }
 
-    if (m_double_right_clicked || m_single_left_click) {
+    if (m_select_pending || m_zoom_pending) {
         QPair<QPointF, QPointF> inPoint = getCurrentRectangle(event);
-        //qDebug() << inPoint.first << inPoint.second;
+
         QRectF rect;
         rect = QRectF(inPoint.first, inPoint.second);
-        m_select_box->setRect(rect);
+        if (m_zoom_pending)
+            m_zoom_box->setRect(rect);
+        else if (m_select_pending && m_single_right_click)
+            m_select_box->setRect(rect);
+        else if (m_select_pending && !m_single_right_click) {
+            //qDebug() << m_border_start.x() << inPoint.first.x() << m_border_end.x()<<inPoint.second.x();
+            if (m_border_start.x() <= inPoint.first.x() && m_border_end.x() >= inPoint.second.x()) {
+                //  qDebug() << "in range";
+                m_select_box->setRect(rect);
+            } else {
+                m_select_box->setRect(QRectF(m_border_start, m_border_end));
+                //  qDebug() << "out";
+            }
+        }
         QChartView::mouseMoveEvent(event);
         return;
     }
@@ -268,16 +310,33 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
         UpdateZoom();
         emit ZoomChanged();
     } else if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
+        if (m_select_pending) {
+            m_single_right_click = false;
+            m_select_pending = false;
+            QPair<QPointF, QPointF> rect = getCurrentRectangle(event);
 
+            if (m_border_start.x() <= rect.first.x() && m_border_end.x() >= rect.second.x()) {
+                emit AddRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
+
+            } else {
+                emit AddRect(chart()->mapToValue(m_border_start), chart()->mapToValue(m_border_end));
+            }
+            m_vertical_line->setVisible(m_vertical_line_visible);
+            m_line_position->setVisible(m_vertical_line_visible);
+            m_select_box->hide();
+
+            setSelectStrategy(m_saved_select_strategy);
+            setZoomStrategy(m_saved_zoom_strategy);
+        }
     } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
-        if (m_single_left_click) {
+        if (m_zoom_pending) {
             QPair<QPointF, QPointF> rect = getCurrentRectangle(event);
             chart()->zoomIn(QRectF(rect.first, rect.second));
             ZoomRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
             UpdateZoom();
-            m_rect_pending = false;
+            m_zoom_pending = false;
             m_single_left_click = false;
-            m_select_box->hide();
+            m_zoom_box->hide();
             m_vertical_line->setVisible(m_vertical_line_visible);
             m_line_position->setVisible(m_vertical_line_visible);
         }
@@ -298,12 +357,7 @@ void ChartViewPrivate::mouseDoubleClickEvent(QMouseEvent* event)
     UpdateCorner();
 
     if (event->button() == Qt::RightButton || event->buttons() == Qt::RightButton) {
-        m_double_right_clicked = true;
-        m_select_box->setBrush(QColor::fromRgbF(0.68, 0.68, 0.67, 1));
-
-        RectanglStart(event);
-        m_vertical_line->hide();
-        m_line_position->hide();
+        event->ignore();
     } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
         QPointF inPoint;
         inPoint.setX(event->x());
@@ -335,9 +389,12 @@ void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
     switch (event->key()) {
     case Qt::Key_Escape:
         m_double_right_clicked = false;
-        m_rect_pending = false;
+        m_zoom_pending = false;
+        m_select_pending = false;
         m_single_left_click = false;
+        m_single_right_click = false;
         m_select_box->hide();
+        m_zoom_box->hide();
         m_vertical_line->setVisible(m_vertical_line_visible);
         m_line_position->setVisible(m_vertical_line_visible);
         break;

@@ -79,6 +79,8 @@ public slots:
     void setZoom(qreal x_min, qreal x_max, qreal y_min, qreal y_max);
     void UpdateZoom();
 
+    void setSelectBox(const QPointF& topleft, const QPointF& bottomright);
+
 protected:
     virtual void mousePressEvent(QMouseEvent* event) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
@@ -93,20 +95,23 @@ private:
     void RectanglStart(QMouseEvent* event);
     QPair<QPointF, QPointF> getCurrentRectangle(QMouseEvent* event);
     QPointF mapToPoint(QMouseEvent* event);
+    QPointF mapToPoint(const QPointF& event);
+
+    QPointF m_border_start, m_border_end;
 
     void UpdateCorner();
 
     QGraphicsLineItem* m_vertical_line;
     QGraphicsTextItem* m_line_position;
-    QGraphicsRectItem* m_select_box;
+    QGraphicsRectItem *m_zoom_box, *m_select_box;
 
     QPointF m_rect_start, m_upperleft, m_lowerright;
     double m_x_min, m_x_max, m_y_min, m_y_max;
 
-    bool m_single_left_click = false, m_double_right_clicked = false, m_vertical_line_visible = false, m_rect_pending = false;
+    bool m_single_left_click = false, m_single_right_click = false, m_double_right_clicked = false, m_vertical_line_visible = false, m_zoom_pending = false, m_select_pending = false;
 
-    ZoomStrategy m_zoom_strategy;
-    SelectStrategy m_select_strategy;
+    ZoomStrategy m_zoom_strategy, m_saved_zoom_strategy;
+    SelectStrategy m_select_strategy, m_saved_select_strategy;
 
 signals:
     void LockZoom();
@@ -226,6 +231,8 @@ public:
     }
 
     QtCharts::QChart* Chart() { return m_chart; }
+    ChartViewPrivate* PrivateView() { return m_chart_private; }
+
     QPointer<QtCharts::QValueAxis> axisY() const { return m_YAxis; }
     QPointer<QtCharts::QValueAxis> axisX() const { return m_XAxis; }
 
@@ -237,6 +244,8 @@ public:
     inline void setFont(const QString& font) { m_font = font; }
 
 public slots:
+    void setSelectBox(const QPointF& topleft, const QPointF& bottomright) { m_chart_private->setSelectBox(topleft, bottomright); }
+
     void formatAxis();
     void MinMaxScale();
 
