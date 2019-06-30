@@ -412,6 +412,11 @@ void ChartView::setUi()
     connect(scaleAction, SIGNAL(triggered()), this, SLOT(forceformatAxis()));
     menu->addAction(scaleAction);
 
+    QAction* MinMaxscaleAction = new QAction(this);
+    MinMaxscaleAction->setText(tr("Autoscale Min/Max"));
+    connect(MinMaxscaleAction, SIGNAL(triggered()), this, SLOT(MinMaxScale()));
+    menu->addAction(MinMaxscaleAction);
+
     QAction* exportpng = new QAction(this);
     exportpng->setText(tr("Export Diagram (PNG)"));
     connect(exportpng, SIGNAL(triggered()), this, SLOT(ExportPNG()));
@@ -709,6 +714,61 @@ void ChartView::forceformatAxis()
     m_YAxis->setTitleText(m_y_axis);
 
     m_pending = false;
+    m_ymax = y_max;
+    m_ymin = y_min;
+    m_xmin = x_min;
+    m_xmax = x_max;
+
+    if (connected)
+        m_chartconfigdialog->setConfig(getChartConfig());
+    m_chart_private->UpdateZoom();
+}
+
+void ChartView::MinMaxScale()
+{
+
+    if (m_lock_scaling || m_chart->series().size() == 0)
+        return;
+    m_pending = true;
+
+    qreal x_min = 0;
+    qreal x_max = 0;
+    qreal y_max = 0;
+    qreal y_min = 0;
+    int start = 0;
+    for (QtCharts::QAbstractSeries* series : m_chart->series()) {
+        QPointer<QtCharts::QXYSeries> serie = qobject_cast<QtCharts::QXYSeries*>(series);
+        if (!serie)
+            continue;
+        if (!serie->isVisible())
+            continue;
+
+        QVector<QPointF> points = serie->pointsVector();
+        if (start == 0 && points.size()) {
+            y_min = points.first().y();
+            y_max = points.first().y();
+
+            x_min = points.first().x();
+            x_max = points.first().x();
+            start = 1;
+        }
+        for (int i = 0; i < points.size(); ++i) {
+            y_min = qMin(y_min, points[i].y());
+            y_max = qMax(y_max, points[i].y());
+
+            x_min = qMin(x_min, points[i].x());
+            x_max = qMax(x_max, points[i].x());
+        }
+    }
+
+    m_XAxis->setRange(x_min, x_max);
+    m_XAxis->applyNiceNumbers();
+    m_YAxis->setRange(y_min, y_max);
+    m_YAxis->applyNiceNumbers();
+
+    m_XAxis->setTitleText(m_x_axis);
+    m_YAxis->setTitleText(m_y_axis);
+
     m_ymax = y_max;
     m_ymin = y_min;
     m_xmin = x_min;
