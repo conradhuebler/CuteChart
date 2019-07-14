@@ -97,13 +97,8 @@ QPointF ChartViewPrivate::mapToPoint(QMouseEvent* event) const
 
 QPointF ChartViewPrivate::mapToPoint(const QPointF& point) const
 {
-    QPointF inPoint;
-    if ((CurrentZoomStrategy() == ZoomStrategy::Z_Rectangular && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Rectangular && m_double_right_clicked)) {
-        inPoint.setX(point.x());
-        inPoint.setY(point.y());
-
-    } else if ((CurrentZoomStrategy() == ZoomStrategy::Z_Horizontal && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Horizontal && m_single_right_click)) {
-        inPoint.setX(point.x());
+    QPointF inPoint(point);
+    if ((CurrentZoomStrategy() == ZoomStrategy::Z_Horizontal && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Horizontal && m_single_right_click)) {
         if (m_zoom_pending == false || m_select_pending == false)
             inPoint.setY(m_upperleft.y());
         else
@@ -114,8 +109,9 @@ QPointF ChartViewPrivate::mapToPoint(const QPointF& point) const
             inPoint.setX(m_upperleft.x());
         else
             inPoint.setX(m_lowerright.x());
-        inPoint.setY(point.y());
     }
+    qDebug() << point << inPoint << m_upperleft << m_lowerright;
+
     return inPoint;
 }
 
@@ -149,7 +145,7 @@ void ChartViewPrivate::setVerticalLineEnabled(bool enabled)
 
 void ChartViewPrivate::RectanglStart(QMouseEvent* event)
 {
-    QPointF inPoint = mapToPoint(event);
+    QPointF inPoint = (mapFromGlobal(QCursor::pos()));
     m_rect_start = inPoint;
 
     if (m_select_pending)
@@ -164,8 +160,8 @@ void ChartViewPrivate::RectanglStart(QMouseEvent* event)
 
 QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle(QMouseEvent* event)
 {
-    QPointF inPoint = (mapFromGlobal(QCursor::pos())); //mapToPoint(event);
-    //qDebug() << m_rect_start << inPoint <<  mapToPoint(mapFromGlobal(QCursor::pos()));
+    QPointF inPoint = (mapFromGlobal(QCursor::pos()));
+
     QPointF left, right;
     left.setX(qMin(inPoint.x(), m_rect_start.x()));
     right.setX(qMax(inPoint.x(), m_rect_start.x()));
@@ -173,8 +169,7 @@ QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle(QMouseEvent* event
     left.setY(qMin(inPoint.y(), m_rect_start.y()));
     right.setY(qMax(inPoint.y(), m_rect_start.y()));
 
-    // qDebug() << left << right;
-
+    //qDebug() << left << right << m_upperleft << m_lowerright;
     return QPair<QPointF, QPointF>(left, right);
 }
 
@@ -187,6 +182,8 @@ void ChartViewPrivate::UpdateCorner()
 {
     m_upperleft = chart()->mapToPosition(QPointF(m_x_min, m_y_max));
     m_lowerright = chart()->mapToPosition(QPointF(m_x_max, m_y_min));
+    // qDebug() << QPointF(m_x_min, m_y_max) << m_upperleft;
+    // qDebug() << QPointF(m_x_max, m_y_min) << m_lowerright;
 }
 
 void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
@@ -495,73 +492,71 @@ void ChartView::setUi()
     connect(exportpng, SIGNAL(triggered()), this, SLOT(ExportPNG()));
     menu->addAction(exportpng);
 
-    {
-        QMenu* select_strategie = new QMenu(tr("Select Strategy"));
-        QAction* none = new QAction(tr("None"));
-        none->setData(SelectStrategy::S_None);
-        none->setCheckable(true);
+    m_select_strategy = new QMenu(tr("Select Strategy"));
 
-        QAction* horizonal = new QAction(tr("Horizontal"));
-        horizonal->setData(SelectStrategy::S_Horizontal);
-        horizonal->setCheckable(true);
+    m_select_none = new QAction(tr("None"));
+    m_select_none->setData(SelectStrategy::S_None);
+    m_select_none->setCheckable(true);
 
-        QAction* vertical = new QAction(tr("Vertical"));
-        vertical->setData(SelectStrategy::S_Vertical);
-        vertical->setCheckable(true);
+    m_select_horizonal = new QAction(tr("Horizontal"));
+    m_select_horizonal->setData(SelectStrategy::S_Horizontal);
+    m_select_horizonal->setCheckable(true);
 
-        QAction* rectangular = new QAction(tr("Rectangular"));
-        rectangular->setData(SelectStrategy::S_Rectangular);
-        rectangular->setCheckable(true);
+    m_select_vertical = new QAction(tr("Vertical"));
+    m_select_vertical->setData(SelectStrategy::S_Vertical);
+    m_select_vertical->setCheckable(true);
 
-        select_strategie->addAction(none);
-        select_strategie->addAction(horizonal);
-        select_strategie->addAction(vertical);
-        select_strategie->addAction(rectangular);
+    m_select_rectangular = new QAction(tr("Rectangular"));
+    m_select_rectangular->setData(SelectStrategy::S_Rectangular);
+    m_select_rectangular->setCheckable(true);
 
-        menu->addMenu(select_strategie);
-        connect(select_strategie, &QMenu::triggered, [this, none, vertical, horizonal, rectangular](QAction* action) {
-            SelectStrategy select = static_cast<SelectStrategy>(action->data().toInt());
-            this->m_chart_private->setSelectStrategy(select);
-            none->setChecked(select == SelectStrategy::S_None);
-            horizonal->setChecked(select == SelectStrategy::S_Horizontal);
-            vertical->setChecked(select == SelectStrategy::S_Vertical);
-            rectangular->setChecked(select == SelectStrategy::S_Rectangular);
-        });
-    }
+    m_select_strategy->addAction(m_select_none);
+    m_select_strategy->addAction(m_select_horizonal);
+    m_select_strategy->addAction(m_select_vertical);
+    m_select_strategy->addAction(m_select_rectangular);
 
-    {
-        QMenu* select_strategie = new QMenu(tr("Zoom Strategy"));
-        QAction* none = new QAction(tr("None"));
-        none->setData(ZoomStrategy::Z_None);
-        none->setCheckable(true);
+    menu->addMenu(m_select_strategy);
+    connect(m_select_strategy, &QMenu::triggered, [this](QAction* action) {
+        SelectStrategy select = static_cast<SelectStrategy>(action->data().toInt());
+        this->m_chart_private->setSelectStrategy(select);
+        m_select_none->setChecked(select == SelectStrategy::S_None);
+        m_select_horizonal->setChecked(select == SelectStrategy::S_Horizontal);
+        m_select_vertical->setChecked(select == SelectStrategy::S_Vertical);
+        m_select_rectangular->setChecked(select == SelectStrategy::S_Rectangular);
+    });
 
-        QAction* horizonal = new QAction(tr("Horizontal"));
-        horizonal->setData(ZoomStrategy::Z_Horizontal);
-        horizonal->setCheckable(true);
+    m_zoom_strategy = new QMenu(tr("Zoom Strategy"));
 
-        QAction* vertical = new QAction(tr("Vertical"));
-        vertical->setData(ZoomStrategy::Z_Vertical);
-        vertical->setCheckable(true);
+    m_zoom_none = new QAction(tr("None"));
+    m_zoom_none->setData(ZoomStrategy::Z_None);
+    m_zoom_none->setCheckable(true);
 
-        QAction* rectangular = new QAction(tr("Rectangular"));
-        rectangular->setData(ZoomStrategy::Z_Rectangular);
-        rectangular->setCheckable(true);
+    m_zoom_horizonal = new QAction(tr("Horizontal"));
+    m_zoom_horizonal->setData(ZoomStrategy::Z_Horizontal);
+    m_zoom_horizonal->setCheckable(true);
 
-        select_strategie->addAction(none);
-        select_strategie->addAction(horizonal);
-        select_strategie->addAction(vertical);
-        select_strategie->addAction(rectangular);
+    m_zoom_vertical = new QAction(tr("Vertical"));
+    m_zoom_vertical->setData(ZoomStrategy::Z_Vertical);
+    m_zoom_vertical->setCheckable(true);
 
-        menu->addMenu(select_strategie);
-        connect(select_strategie, &QMenu::triggered, [this, none, vertical, horizonal, rectangular](QAction* action) {
-            ZoomStrategy select = static_cast<ZoomStrategy>(action->data().toInt());
-            this->m_chart_private->setZoomStrategy(select);
-            none->setChecked(select == ZoomStrategy::Z_None);
-            horizonal->setChecked(select == ZoomStrategy::Z_Horizontal);
-            vertical->setChecked(select == ZoomStrategy::Z_Vertical);
-            rectangular->setChecked(select == ZoomStrategy::Z_Rectangular);
-        });
-    }
+    m_zoom_rectangular = new QAction(tr("Rectangular"));
+    m_zoom_rectangular->setData(ZoomStrategy::Z_Rectangular);
+    m_zoom_rectangular->setCheckable(true);
+
+    m_zoom_strategy->addAction(m_zoom_none);
+    m_zoom_strategy->addAction(m_zoom_horizonal);
+    m_zoom_strategy->addAction(m_zoom_vertical);
+    m_zoom_strategy->addAction(m_zoom_rectangular);
+
+    menu->addMenu(m_zoom_strategy);
+    connect(m_zoom_strategy, &QMenu::triggered, [this](QAction* action) {
+        ZoomStrategy select = static_cast<ZoomStrategy>(action->data().toInt());
+        this->m_chart_private->setZoomStrategy(select);
+        m_zoom_none->setChecked(select == ZoomStrategy::Z_None);
+        m_zoom_horizonal->setChecked(select == ZoomStrategy::Z_Horizontal);
+        m_zoom_vertical->setChecked(select == ZoomStrategy::Z_Vertical);
+        m_zoom_rectangular->setChecked(select == ZoomStrategy::Z_Rectangular);
+    });
 
     m_config = new QPushButton(tr("Tools"));
     m_config->setFlat(true);
@@ -604,6 +599,24 @@ void ChartView::setUi()
     m_scaling = (qApp->instance()->property("chartScaling").toInt());
     m_lineWidth = (qApp->instance()->property("chartScaling").toDouble());
     m_markerSize = (qApp->instance()->property("markerSize").toDouble());
+}
+
+void ChartView::setZoomStrategy(ZoomStrategy strategy)
+{
+    m_chart_private->setZoomStrategy(strategy);
+    m_zoom_none->setChecked(strategy == ZoomStrategy::Z_None);
+    m_zoom_horizonal->setChecked(strategy == ZoomStrategy::Z_Horizontal);
+    m_zoom_vertical->setChecked(strategy == ZoomStrategy::Z_Vertical);
+    m_zoom_rectangular->setChecked(strategy == ZoomStrategy::Z_Rectangular);
+}
+
+void ChartView::setSelectStrategy(SelectStrategy strategy)
+{
+    m_chart_private->setSelectStrategy(strategy);
+    m_select_none->setChecked(strategy == SelectStrategy::S_None);
+    m_select_horizonal->setChecked(strategy == SelectStrategy::S_Horizontal);
+    m_select_vertical->setChecked(strategy == SelectStrategy::S_Vertical);
+    m_select_rectangular->setChecked(strategy == SelectStrategy::S_Rectangular);
 }
 
 QtCharts::QLineSeries* ChartView::addLinearSeries(qreal m, qreal n, qreal min, qreal max)

@@ -135,8 +135,8 @@ public:
     ChartView();
     ~ChartView() override;
 
-    inline void setZoomStrategy(ZoomStrategy strategy) { m_chart_private->setZoomStrategy(strategy); }
-    inline void setSelectStrategy(SelectStrategy strategy) { m_chart_private->setSelectStrategy(strategy); }
+    void setZoomStrategy(ZoomStrategy strategy);
+    void setSelectStrategy(SelectStrategy strategy);
 
     inline ZoomStrategy CurrentZoomStrategy() const { return m_chart_private->CurrentZoomStrategy(); }
     inline SelectStrategy CurrentSelectStrategy() const { return m_chart_private->CurrentSelectStrategy(); }
@@ -289,6 +289,9 @@ private:
     QVector<QPointer<QtCharts::QAbstractSeries>> m_series;
     QVector<QPointer<PeakCallOut>> m_peak_anno;
     ChartConfig ReadSettings();
+
+    QAction *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
+    QMenu *m_select_strategy, *m_zoom_strategy;
 
     ChartConfig m_last_config;
     void WriteSettings(const ChartConfig& chartconfig);
