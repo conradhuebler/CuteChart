@@ -90,12 +90,12 @@ void ChartViewPrivate::UpdateView(double min, double max)
     m_y_max = max;
 }
 
-QPointF ChartViewPrivate::mapToPoint(QMouseEvent* event)
+QPointF ChartViewPrivate::mapToPoint(QMouseEvent* event) const
 {
     return mapToPoint(QPointF(event->x(), event->y()));
 }
 
-QPointF ChartViewPrivate::mapToPoint(const QPointF& point)
+QPointF ChartViewPrivate::mapToPoint(const QPointF& point) const
 {
     QPointF inPoint;
     if ((CurrentZoomStrategy() == ZoomStrategy::Z_Rectangular && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Rectangular && m_double_right_clicked)) {
@@ -178,6 +178,11 @@ QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle(QMouseEvent* event
     return QPair<QPointF, QPointF>(left, right);
 }
 
+QPointF ChartViewPrivate::currentMousePosition() const
+{
+    return (mapFromGlobal(QCursor::pos()));
+}
+
 void ChartViewPrivate::UpdateCorner()
 {
     m_upperleft = chart()->mapToPosition(QPointF(m_x_min, m_y_max));
@@ -246,6 +251,7 @@ void ChartViewPrivate::setSelectBox(const QPointF& topleft, const QPointF& botto
     m_rect_start = chart()->mapToPosition(topleft);
     m_select_box->setRect(rect);
     m_select_box->show();
+    setFocus();
 }
 
 void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
@@ -397,6 +403,13 @@ void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
         m_zoom_box->hide();
         m_vertical_line->setVisible(m_vertical_line_visible);
         m_line_position->setVisible(m_vertical_line_visible);
+        emit EscapeSelectMode();
+        break;
+    case Qt::Key_Left:
+        emit LeftKey();
+        break;
+    case Qt::Key_Right:
+        emit RightKey();
         break;
     default:
         QGraphicsView::keyPressEvent(event);
@@ -421,6 +434,9 @@ ChartView::ChartView()
     connect(m_chart_private, SIGNAL(scaleUp()), this, SIGNAL(scaleUp()));
     connect(m_chart_private, SIGNAL(AddRect(const QPointF&, const QPointF&)), this, SIGNAL(AddRect(const QPointF&, const QPointF&)));
     connect(m_chart_private, &ChartViewPrivate::PointDoubleClicked, this, &ChartView::PointDoubleClicked);
+    connect(m_chart_private, &ChartViewPrivate::EscapeSelectMode, this, &ChartView::EscapeSelectMode);
+    connect(m_chart_private, &ChartViewPrivate::RightKey, this, &ChartView::RightKey);
+    connect(m_chart_private, &ChartViewPrivate::LeftKey, this, &ChartView::LeftKey);
 
     m_chart->legend()->setVisible(false);
     m_chart->legend()->setAlignment(Qt::AlignRight);

@@ -69,6 +69,8 @@ public:
     inline SelectStrategy CurrentSelectStrategy() const { return m_select_strategy; }
 
     inline bool isVerticalLineEnabled() const { return m_vertical_line_visible; }
+
+    QPointF currentMousePosition() const;
 public slots:
     void UpdateVerticalLine(double x);
 
@@ -94,8 +96,8 @@ private:
 
     void RectanglStart(QMouseEvent* event);
     QPair<QPointF, QPointF> getCurrentRectangle(QMouseEvent* event);
-    QPointF mapToPoint(QMouseEvent* event);
-    QPointF mapToPoint(const QPointF& event);
+    QPointF mapToPoint(QMouseEvent* event) const;
+    QPointF mapToPoint(const QPointF& event) const;
 
     QPointF m_border_start, m_border_end;
 
@@ -112,7 +114,6 @@ private:
 
     ZoomStrategy m_zoom_strategy, m_saved_zoom_strategy;
     SelectStrategy m_select_strategy, m_saved_select_strategy;
-
 signals:
     void LockZoom();
     void UnLockZoom();
@@ -122,6 +123,9 @@ signals:
     void AddRect(const QPointF& point1, const QPointF& point2);
     void ZoomRect(const QPointF& point1, const QPointF& point2);
     void PointDoubleClicked(const QPointF& point);
+    void EscapeSelectMode();
+    void RightKey();
+    void LeftKey();
 };
 
 class ChartView : public QScrollArea {
@@ -242,6 +246,7 @@ public:
     }
 
     inline void setFont(const QString& font) { m_font = font; }
+    QPointF currentMousePosition() const { return m_chart_private->currentMousePosition(); }
 
 public slots:
     void setSelectBox(const QPointF& topleft, const QPointF& bottomright) { m_chart_private->setSelectBox(topleft, bottomright); }
@@ -314,6 +319,9 @@ signals:
     void scaleUp();
     void scaleDown();
     void AddRect(const QPointF& point1, const QPointF& point2);
+    void EscapeSelectMode();
+    void RightKey();
+    void LeftKey();
 
 protected:
     virtual void resizeEvent(QResizeEvent* event) override;
