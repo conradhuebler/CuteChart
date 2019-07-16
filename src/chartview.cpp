@@ -440,6 +440,7 @@ ChartView::ChartView()
     setUi();
     setZoomStrategy(ZoomStrategy::Z_Rectangular);
     setSelectStrategy(S_None);
+    setAutoScaleStrategy(AutoScaleStrategy::SpaceScale);
     m_chart_private->setVerticalLineEnabled(false);
 }
 
@@ -479,12 +480,25 @@ void ChartView::setUi()
 
     QAction* scaleAction = new QAction(this);
     scaleAction->setText(tr("Rescale Axis"));
-    connect(scaleAction, SIGNAL(triggered()), this, SLOT(forceformatAxis()));
+    connect(scaleAction, &QAction::triggered, this, [this]() {
+        AutoScaleStrategy strategy = m_autoscalestrategy;
+        m_autoscalestrategy = AutoScaleStrategy::SpaceScale;
+        forceformatAxis();
+        m_autoscalestrategy = strategy;
+
+    });
+
     menu->addAction(scaleAction);
 
     QAction* MinMaxscaleAction = new QAction(this);
     MinMaxscaleAction->setText(tr("Autoscale Min/Max"));
-    connect(MinMaxscaleAction, SIGNAL(triggered()), this, SLOT(MinMaxScale()));
+    connect(MinMaxscaleAction, &QAction::triggered, this, [this]() {
+        AutoScaleStrategy strategy = m_autoscalestrategy;
+        m_autoscalestrategy = AutoScaleStrategy::QtNiceNumbers;
+        forceformatAxis();
+        m_autoscalestrategy = strategy;
+
+    });
     menu->addAction(MinMaxscaleAction);
 
     QAction* exportpng = new QAction(this);
@@ -763,6 +777,19 @@ void ChartView::forceformatAxis()
         return;
     m_pending = true;
 
+    if (m_autoscalestrategy == AutoScaleStrategy::QtNiceNumbers)
+        QtNiceNumbersScale();
+    else if (m_autoscalestrategy == AutoScaleStrategy::SpaceScale)
+        SpaceScale();
+
+    if (connected)
+        m_chartconfigdialog->setConfig(getChartConfig());
+
+    m_chart_private->UpdateZoom();
+}
+
+void ChartView::SpaceScale()
+{
     qreal x_min = 0;
     qreal x_max = 0;
     qreal y_max = 0;
@@ -804,19 +831,10 @@ void ChartView::forceformatAxis()
     m_ymin = y_min;
     m_xmin = x_min;
     m_xmax = x_max;
-
-    if (connected)
-        m_chartconfigdialog->setConfig(getChartConfig());
-    m_chart_private->UpdateZoom();
 }
 
-void ChartView::MinMaxScale()
+void ChartView::QtNiceNumbersScale()
 {
-
-    if (m_lock_scaling || m_chart->series().size() == 0)
-        return;
-    m_pending = true;
-
     qreal x_min = 0;
     qreal x_max = 0;
     qreal y_max = 0;
@@ -859,10 +877,6 @@ void ChartView::MinMaxScale()
     m_ymin = y_min;
     m_xmin = x_min;
     m_xmax = x_max;
-
-    if (connected)
-        m_chartconfigdialog->setConfig(getChartConfig());
-    m_chart_private->UpdateZoom();
 }
 
 void ChartView::PlotSettings()
@@ -892,6 +906,7 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
     // m_XAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisX());
     if (m_XAxis) {
         m_XAxis->setTitleText(chartconfig.x_axis);
+        m_x_axis = chartconfig.x_axis;
         m_XAxis->setTickCount(chartconfig.x_step);
         m_XAxis->setMin(chartconfig.x_min);
         m_XAxis->setMax(chartconfig.x_max);
@@ -902,6 +917,7 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
     //QPointer<QtCharts::QValueAxis> m_YAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisY());
     if (m_YAxis) {
         m_YAxis->setTitleText(chartconfig.y_axis);
+        m_y_axis = chartconfig.y_axis;
         m_YAxis->setTickCount(chartconfig.y_step);
         m_YAxis->setMin(chartconfig.y_min);
         m_YAxis->setMax(chartconfig.y_max);

@@ -55,6 +55,11 @@ enum SelectStrategy {
     S_Rectangular = 3
 };
 
+enum AutoScaleStrategy {
+    QtNiceNumbers = 0,
+    SpaceScale = 1
+};
+
 class ChartViewPrivate : public QtCharts::QChartView {
     Q_OBJECT
 public:
@@ -152,6 +157,8 @@ public:
     QtCharts::QLineSeries* addLinearSeries(qreal m, qreal n, qreal min, qreal max);
     void ClearChart();
     inline void setModal(bool modal) { m_chartconfigdialog->setModal(modal); }
+
+    inline void setAutoScaleStrategy(AutoScaleStrategy strategy) { m_autoscalestrategy = strategy; }
 
     inline qreal YMaxRange() const
     {
@@ -252,7 +259,8 @@ public slots:
     void setSelectBox(const QPointF& topleft, const QPointF& bottomright) { m_chart_private->setSelectBox(topleft, bottomright); }
 
     void formatAxis();
-    void MinMaxScale();
+    void QtNiceNumbersScale();
+    void SpaceScale();
 
     void setXAxis(const QString& str)
     {
@@ -305,6 +313,8 @@ private:
     qreal m_lineWidth = 4, m_markerSize = 8;
 
     QString m_font;
+    AutoScaleStrategy m_autoscalestrategy;
+
 private slots:
     void PlotSettings();
     void ExportPNG();
