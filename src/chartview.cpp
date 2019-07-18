@@ -835,11 +835,12 @@ void ChartView::SpaceScale()
 
 void ChartView::QtNiceNumbersScale()
 {
-    qreal x_min = 0;
-    qreal x_max = 0;
-    qreal y_max = 0;
-    qreal y_min = 0;
+    qreal x_min = 1e12;
+    qreal x_max = -1 * 1e12;
+    qreal y_max = -1 * 1e12;
+    qreal y_min = 1 * 1e12;
     int start = 0;
+
     for (QtCharts::QAbstractSeries* series : m_chart->series()) {
         QPointer<QtCharts::QXYSeries> serie = qobject_cast<QtCharts::QXYSeries*>(series);
         if (!serie)
