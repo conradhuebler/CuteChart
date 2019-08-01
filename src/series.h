@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <QtCore/QDebug>
 #include <QtCore/QList>
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
@@ -35,7 +36,7 @@ class LineSeries : public QtCharts::QLineSeries {
 
 public:
     LineSeries();
-    inline ~LineSeries() {}
+    virtual inline ~LineSeries() override {}
 
 public slots:
     virtual void setColor(const QColor& color)
@@ -95,7 +96,7 @@ class ScatterSeries : public QtCharts::QScatterSeries {
 
 public:
     ScatterSeries();
-    inline ~ScatterSeries() {}
+    virtual inline ~ScatterSeries() override {}
 
 public slots:
     virtual void setColor(const QColor& color);
