@@ -95,17 +95,17 @@ void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QC
         item->setData(Qt::UserRole + 1, QVariant::fromValue(series));
     }
 
-    if (!m_names_list->findItems(name, Qt::MatchExactly).size()) {
-        item = new QListWidgetItem(name);
-        item->setData(Qt::UserRole, name);
-        m_names_list->addItem(item);
-    }
-
     QtCharts::QXYSeries* s = qobject_cast<QtCharts::QXYSeries*>(series);
     if (s && item != NULL)
         connect(s, &QtCharts::QXYSeries::colorChanged, this, [item](const QColor& color) {
             item->setBackgroundColor(color);
         });
+
+    if (!m_names_list->findItems(name, Qt::MatchExactly).size()) {
+        item = new QListWidgetItem(name);
+        item->setData(Qt::UserRole, name);
+        m_names_list->addItem(item);
+    }
 
     m_list->setItemDelegate(new HTMLListItem(m_list));
     m_names_list->setItemDelegate(new HTMLListItem(m_names_list));
