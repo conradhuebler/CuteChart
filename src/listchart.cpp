@@ -79,8 +79,11 @@ void ListChart::setYAxis(const QString& str)
     m_chartview->setYAxis(str);
 }
 
-void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QColor& color, const QString& name, bool callout)
+void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QColor& color, QString name, bool callout)
 {
+    if (name.isEmpty() || name.isNull())
+        name = series->name();
+
     m_chartview->addSeries(series, callout);
 
     QListWidgetItem* item = NULL;

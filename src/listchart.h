@@ -87,7 +87,7 @@ public:
     }
     inline qreal YMax() const { return m_chartview->YMax(); }
 
-    void addSeries(QtCharts::QAbstractSeries* series, int index, const QColor& color, const QString& name = QString(), bool callout = false);
+    void addSeries(QtCharts::QAbstractSeries* series, int index, const QColor& color, QString name = QString(), bool callout = false);
     void Clear();
     QtCharts::QLineSeries* addLinearSeries(qreal m, qreal n, qreal min, qreal max, int index);
 
