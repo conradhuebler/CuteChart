@@ -111,6 +111,8 @@ public:
         return m_chartview;
     }
 
+    inline void setAutoScaleStrategy(AutoScaleStrategy strategy) { m_chartview->setAutoScaleStrategy(strategy); }
+
 public slots:
     inline void formatAxis() { m_chartview->formatAxis(); }
     void setColor(int index, const QColor& color);
