@@ -116,6 +116,7 @@ private:
     double m_x_min, m_x_max, m_y_min, m_y_max;
 
     bool m_single_left_click = false, m_single_right_click = false, m_double_right_clicked = false, m_vertical_line_visible = false, m_zoom_pending = false, m_select_pending = false;
+    bool m_box_started = false, m_box_bounded = false;
 
     ZoomStrategy m_zoom_strategy, m_saved_zoom_strategy;
     SelectStrategy m_select_strategy, m_saved_select_strategy;

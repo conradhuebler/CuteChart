@@ -98,19 +98,18 @@ QPointF ChartViewPrivate::mapToPoint(QMouseEvent* event) const
 QPointF ChartViewPrivate::mapToPoint(const QPointF& point) const
 {
     QPointF inPoint(point);
-    if ((CurrentZoomStrategy() == ZoomStrategy::Z_Horizontal && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Horizontal && m_single_right_click)) {
-        if (m_zoom_pending == false || m_select_pending == false)
+    if ((CurrentZoomStrategy() == ZoomStrategy::Z_Horizontal /* && m_single_left_click */) || (CurrentSelectStrategy() == SelectStrategy::S_Horizontal /* && m_single_right_click */)) {
+        if (m_box_started == false)
             inPoint.setY(m_upperleft.y());
         else
             inPoint.setY(m_lowerright.y());
 
-    } else if ((CurrentZoomStrategy() == ZoomStrategy::Z_Vertical && m_single_left_click) || (CurrentSelectStrategy() == SelectStrategy::S_Vertical && m_single_right_click)) {
-        if (m_zoom_pending == false || m_select_pending == false)
+    } else if ((CurrentZoomStrategy() == ZoomStrategy::Z_Vertical /* && m_single_left_click */) || (CurrentSelectStrategy() == SelectStrategy::S_Vertical /* && m_single_right_click */)) {
+        if (m_box_started == false)
             inPoint.setX(m_upperleft.x());
         else
             inPoint.setX(m_lowerright.x());
     }
-    qDebug() << point << inPoint << m_upperleft << m_lowerright;
 
     return inPoint;
 }
@@ -146,7 +145,8 @@ void ChartViewPrivate::setVerticalLineEnabled(bool enabled)
 void ChartViewPrivate::RectanglStart(QMouseEvent* event)
 {
     QPointF inPoint = (mapFromGlobal(QCursor::pos()));
-    m_rect_start = inPoint;
+
+    m_rect_start = mapToPoint(inPoint);
 
     if (m_select_pending)
         m_select_box->setRect(m_rect_start.x(), m_rect_start.y(), 0, 0);
@@ -155,12 +155,12 @@ void ChartViewPrivate::RectanglStart(QMouseEvent* event)
 
     m_vertical_line->hide();
     m_line_position->hide();
-    m_zoom_pending = true;
+    m_box_started = true;
 }
 
 QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle(QMouseEvent* event)
 {
-    QPointF inPoint = (mapFromGlobal(QCursor::pos()));
+    QPointF inPoint = mapToPoint(mapFromGlobal(QCursor::pos()));
 
     QPointF left, right;
     left.setX(qMin(inPoint.x(), m_rect_start.x()));
@@ -169,7 +169,16 @@ QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle(QMouseEvent* event
     left.setY(qMin(inPoint.y(), m_rect_start.y()));
     right.setY(qMax(inPoint.y(), m_rect_start.y()));
 
-    //qDebug() << left << right << m_upperleft << m_lowerright;
+    if (m_box_bounded) {
+        if ((right.x() > m_border_end.x() || right.x() < m_border_start.x())
+            || (right.y() > m_border_end.y() || right.y() < m_border_start.y())
+            || (left.x() > m_border_end.x() || left.x() < m_border_start.x())
+            || (left.y() > m_border_end.y() || left.y() < m_border_start.y())) {
+            right = m_border_end;
+            left = m_border_start;
+        }
+    }
+
     return QPair<QPointF, QPointF>(left, right);
 }
 
@@ -182,8 +191,6 @@ void ChartViewPrivate::UpdateCorner()
 {
     m_upperleft = chart()->mapToPosition(QPointF(m_x_min, m_y_max));
     m_lowerright = chart()->mapToPosition(QPointF(m_x_max, m_y_min));
-    // qDebug() << QPointF(m_x_min, m_y_max) << m_upperleft;
-    // qDebug() << QPointF(m_x_max, m_y_min) << m_lowerright;
 }
 
 void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
@@ -233,16 +240,21 @@ void ChartViewPrivate::wheelEvent(QWheelEvent* event)
 
 void ChartViewPrivate::setSelectBox(const QPointF& topleft, const QPointF& bottomright)
 {
+    UpdateCorner();
+
     m_border_start = chart()->mapToPosition(topleft);
     m_border_end = chart()->mapToPosition(bottomright);
 
     m_saved_zoom_strategy = m_zoom_strategy;
     m_saved_select_strategy = m_select_strategy;
 
-    setSelectStrategy(SelectStrategy::S_Horizontal);
     setZoomStrategy(ZoomStrategy::Z_None);
 
     m_select_pending = true;
+    m_box_started = true;
+    m_single_right_click = true;
+    m_box_bounded = true;
+
     QRectF rect;
     rect = QRectF(chart()->mapToPosition(topleft), chart()->mapToPosition(bottomright));
     m_rect_start = chart()->mapToPosition(topleft);
@@ -264,18 +276,9 @@ void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
         rect = QRectF(inPoint.first, inPoint.second);
         if (m_zoom_pending)
             m_zoom_box->setRect(rect);
-        else if (m_select_pending && m_single_right_click)
+        else if (m_select_pending)
             m_select_box->setRect(rect);
-        else if (m_select_pending && !m_single_right_click) {
-            //qDebug() << m_border_start.x() << inPoint.first.x() << m_border_end.x()<<inPoint.second.x();
-            if (m_border_start.x() <= inPoint.first.x() && m_border_end.x() >= inPoint.second.x()) {
-                //  qDebug() << "in range";
-                m_select_box->setRect(rect);
-            } else {
-                m_select_box->setRect(QRectF(m_border_start, m_border_end));
-                //  qDebug() << "out";
-            }
-        }
+
         QChartView::mouseMoveEvent(event);
         return;
     }
@@ -330,6 +333,8 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
 
             setSelectStrategy(m_saved_select_strategy);
             setZoomStrategy(m_saved_zoom_strategy);
+            m_box_started = false;
+            m_box_bounded = false;
         }
     } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
         if (m_zoom_pending) {
@@ -342,6 +347,8 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
             m_zoom_box->hide();
             m_vertical_line->setVisible(m_vertical_line_visible);
             m_line_position->setVisible(m_vertical_line_visible);
+            m_box_started = false;
+            m_box_bounded = false;
         }
     } else {
         QChartView::mouseReleaseEvent(event);
@@ -1081,14 +1088,15 @@ QString ChartView::Color2RGB(const QColor& color) const
 
 void ChartView::ExportPNG()
 {
+
     const QString str = QFileDialog::getSaveFileName(this, tr("Save File"),
         qApp->instance()->property("lastDir").toString(),
         tr("Images (*.png)"));
     if (str.isEmpty() || str.isNull())
         return;
     emit LastDirChanged(str);
-    // setLastDir(str);
 
+    QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
     bool verticalline = m_chart_private->isVerticalLineEnabled();
     m_chart_private->setVerticalLineEnabled(false);
 
@@ -1112,7 +1120,6 @@ void ChartView::ExportPNG()
     m_chart->scene()->update();
     QApplication::processEvents();
 
-    // Waiter wait;
     int w = m_chart->rect().size().width();
     int h = m_chart->rect().size().height();
     // scaling is important for good resolution
@@ -1232,7 +1239,7 @@ void ChartView::ExportPNG()
             qobject_cast<QtCharts::QScatterSeries*>(serie)->setBorderColor(colors.takeFirst());
             qobject_cast<QtCharts::QScatterSeries*>(serie)->setMarkerSize(size.takeFirst());
         } else if (qobject_cast<LineSeries*>(serie)) {
-            qobject_cast<LineSeries*>(serie)->setSize(width.takeFirst() / 10.0);
+            qobject_cast<LineSeries*>(serie)->setSize(width.takeFirst());
         }
         serie->setUseOpenGL(openGl.takeFirst());
     }
@@ -1262,6 +1269,8 @@ void ChartView::ExportPNG()
     pixmap.save(&file, "PNG");
 
     m_chart_private->setVerticalLineEnabled(verticalline);
+
+    QApplication::restoreOverrideCursor();
 }
 
 void ChartView::ApplyConfigurationChange(const QString& str)

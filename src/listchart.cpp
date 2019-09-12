@@ -210,6 +210,9 @@ void ListChart::ChangeColor()
         item->setBackgroundColor(color);
         qobject_cast<QtCharts::QXYSeries*>(series)->setColor(color);
     }
+    if (qobject_cast<QtCharts::QScatterSeries*>(series)) {
+        qobject_cast<QtCharts::QScatterSeries*>(series)->setBorderColor(color);
+    }
 }
 
 void ListChart::ApplyConfigurationChange()
