@@ -47,7 +47,7 @@ public:
     {
     }
 
-    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
     {
         QStyleOptionViewItem options = option;
         initStyleOption(&options, index);
@@ -66,7 +66,7 @@ public:
 
         painter->restore();
     }
-    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override
     {
         return QSize(150, QStyledItemDelegate::sizeHint(option, index).height());
     }

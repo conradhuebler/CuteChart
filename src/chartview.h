@@ -97,10 +97,10 @@ protected:
     virtual void mouseDoubleClickEvent(QMouseEvent* event) override;
 
 private:
-    void handleMouseMoved(const QPointF& ChartPoint, const QPointF& WidgetPoint);
+    void handleMouseMoved(const QPointF& ChartPoint);
 
-    void RectanglStart(QMouseEvent* event);
-    QPair<QPointF, QPointF> getCurrentRectangle(QMouseEvent* event);
+    void RectanglStart();
+    QPair<QPointF, QPointF> getCurrentRectangle();
     QPointF mapToPoint(QMouseEvent* event) const;
     QPointF mapToPoint(const QPointF& event) const;
 

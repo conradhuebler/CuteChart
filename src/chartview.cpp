@@ -142,7 +142,7 @@ void ChartViewPrivate::setVerticalLineEnabled(bool enabled)
     m_vertical_line_visible = enabled;
 }
 
-void ChartViewPrivate::RectanglStart(QMouseEvent* event)
+void ChartViewPrivate::RectanglStart()
 {
     QPointF inPoint = (mapFromGlobal(QCursor::pos()));
 
@@ -158,7 +158,7 @@ void ChartViewPrivate::RectanglStart(QMouseEvent* event)
     m_box_started = true;
 }
 
-QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle(QMouseEvent* event)
+QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle()
 {
     QPointF inPoint = mapToPoint(mapFromGlobal(QCursor::pos()));
 
@@ -203,7 +203,7 @@ void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
                 m_single_right_click = true;
                 m_select_pending = true;
                 m_select_box->show();
-                RectanglStart(event);
+                RectanglStart();
             }
         }
     } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
@@ -211,7 +211,7 @@ void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
             m_single_left_click = true;
             m_zoom_pending = true;
             m_zoom_box->show();
-            RectanglStart(event);
+            RectanglStart();
         }
 
     } else if (event->button() == Qt::MiddleButton || event->buttons() == Qt::MiddleButton) {
@@ -270,7 +270,7 @@ void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
     }
 
     if (m_select_pending || m_zoom_pending) {
-        QPair<QPointF, QPointF> inPoint = getCurrentRectangle(event);
+        QPair<QPointF, QPointF> inPoint = getCurrentRectangle();
 
         QRectF rect;
         rect = QRectF(inPoint.first, inPoint.second);
@@ -292,7 +292,7 @@ void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
     QChartView::mouseMoveEvent(event);
 }
 
-void ChartViewPrivate::handleMouseMoved(const QPointF& ChartPoint, const QPointF& WidgetPoint)
+void ChartViewPrivate::handleMouseMoved(const QPointF& ChartPoint)
 {
     UpdateVerticalLine(ChartPoint.x());
 }
@@ -319,7 +319,7 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
         if (m_select_pending) {
             m_single_right_click = false;
             m_select_pending = false;
-            QPair<QPointF, QPointF> rect = getCurrentRectangle(event);
+            QPair<QPointF, QPointF> rect = getCurrentRectangle();
 
             if (m_border_start.x() <= rect.first.x() && m_border_end.x() >= rect.second.x()) {
                 emit AddRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
@@ -338,7 +338,7 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
         }
     } else if (event->button() == Qt::LeftButton || event->buttons() == Qt::LeftButton) {
         if (m_zoom_pending) {
-            QPair<QPointF, QPointF> rect = getCurrentRectangle(event);
+            QPair<QPointF, QPointF> rect = getCurrentRectangle();
             chart()->zoomIn(QRectF(rect.first, rect.second));
             ZoomRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
             UpdateZoom();

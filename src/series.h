@@ -39,7 +39,7 @@ public:
     virtual inline ~LineSeries() override {}
 
 public slots:
-    virtual void setColor(const QColor& color)
+    virtual void setColor(const QColor& color) override
     {
         m_color = color;
         QPen pen = QtCharts::QLineSeries::pen();
@@ -99,7 +99,7 @@ public:
     virtual inline ~ScatterSeries() override {}
 
 public slots:
-    virtual void setColor(const QColor& color);
+    virtual void setColor(const QColor& color) override;
     void ShowLine(int state);
 
 signals:
