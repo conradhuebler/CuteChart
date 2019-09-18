@@ -702,7 +702,7 @@ void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
         if (series) {
             //qDebug() << series->name();
 #pragma message("this can be compressed due to logic gatters")
-            bool show = series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ");
+            bool show = series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ") || series->name() == "!NONE!";
             this->m_chart->legend()->markers(series).first()->setVisible(!show);
         }
     });
@@ -710,13 +710,13 @@ void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
         if (series) {
             //qDebug() << series->name();
 #pragma message("this can be compressed due to logic gatters")
-            bool show = series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ");
+            bool show = series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ") || series->name() == "!NONE!";
             if (series->isVisible())
                 this->m_chart->legend()->markers(series).first()->setVisible(!show);
         }
     });
     //qDebug() << series->name();
-    m_chart->legend()->markers(series).first()->setVisible(!(series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ")));
+    m_chart->legend()->markers(series).first()->setVisible(!(series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ") || series->name() == "!NONE!"));
     connect(series, SIGNAL(visibleChanged()), this, SLOT(forceformatAxis()));
     if (!connected)
         if (connect(this, SIGNAL(AxisChanged()), this, SLOT(forceformatAxis())))
