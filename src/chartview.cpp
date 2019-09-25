@@ -321,7 +321,7 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
             m_select_pending = false;
             QPair<QPointF, QPointF> rect = getCurrentRectangle();
 
-            if (m_border_start.x() <= rect.first.x() && m_border_end.x() >= rect.second.x()) {
+            if ((m_border_start.x() <= rect.first.x() && m_border_end.x() >= rect.second.x()) || !m_box_bounded) {
                 emit AddRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
 
             } else {
