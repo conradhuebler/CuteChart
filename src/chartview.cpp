@@ -963,6 +963,9 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
             if (qobject_cast<QtCharts::QXYSeries*>(m_series[i])) {
                 QtCharts::QXYSeries* series = qobject_cast<QtCharts::QXYSeries*>(m_series[i]);
                 series->setColor(QColor("black"));
+                if (qobject_cast<QtCharts::QScatterSeries*>(series)) {
+                    qobject_cast<QtCharts::QScatterSeries*>(series)->setBorderColor(QColor("black"));
+                }
             } else if (qobject_cast<QtCharts::QAreaSeries*>(m_series[i])) {
                 QtCharts::QAreaSeries* series = qobject_cast<QtCharts::QAreaSeries*>(m_series[i]);
                 QLinearGradient gradient(QPointF(0, 0), QPointF(0, 1));
@@ -978,6 +981,12 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
             QBrush brush;
             brush.setColor(Qt::transparent);
             m_chart->setBackgroundBrush(brush);
+            m_chart->setTitleBrush(QBrush(Qt::black));
+            m_YAxis->setTitleBrush(QBrush(Qt::black));
+            m_XAxis->setTitleBrush(QBrush(Qt::black));
+            m_XAxis->setLabelsBrush(QBrush(Qt::black));
+            m_YAxis->setLabelsBrush(QBrush(Qt::black));
+
             //m_chart->setStyleSheet("background-color: transparent;");
         }
         /* QFont font = chartconfig.m_title;
