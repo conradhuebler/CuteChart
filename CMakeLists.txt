@@ -28,12 +28,13 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
                                            -Wno-error=unused-local-typedefs -Wno-error=enum-compare -Wno-narrowing")
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
-find_package(Qt5Widgets CONFIG REQUIRED)
-find_package(Qt5Charts CONFIG REQUIRED)
+find_package(Qt5Widgets 5.12 CONFIG REQUIRED)
+find_package(Qt5Charts 5.12 CONFIG REQUIRED)
 
 set(cutechart_SRC
     src/peakcallout.cpp
     src/chartconfig.cpp
+    src/chartviewprivate.cpp
     src/chartview.cpp
     src/listchart.cpp
     src/series.cpp

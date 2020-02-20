@@ -1,6 +1,6 @@
 /*
  * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2019  Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2019 - 2020 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,118 @@
 
 #pragma once
 
+#include <QtCore/QDebug>
 #include <QtMath>
 
 namespace ChartTools {
+
+inline qreal NiceFloor(qreal value)
+{
+    int sign = 1;
+    if (value < 0)
+        sign = -1;
+    value = qAbs(value);
+    qreal dim = qPow(10, -1 * std::floor(log10(value)));
+    qreal tmp = value * dim;
+    if (sign > 0)
+        value = std::floor(tmp) / dim;
+    else
+        value = std::ceil(tmp) / dim;
+    return sign * value;
+}
+
+inline qreal NiceCeil(qreal value)
+{
+    int sign = 1;
+    if (value < 0)
+        sign = -1;
+    value = qAbs(value);
+    qreal dim = qPow(10, -1 * std::floor(log10(value)));
+    qreal tmp = value * dim;
+    if (sign > 0)
+        value = std::ceil(tmp) / dim;
+    else
+        value = std::floor(tmp) / dim;
+    return sign * value;
+}
+
+inline qreal NiceScalingMin(qreal value)
+{
+    int sign = 1;
+    if (value < 0)
+        sign = -1;
+    value = qAbs(value);
+
+    qreal result = value;
+
+    qreal transform = -1 * std::ceil(log10(value));
+    qreal dimension = qPow(10, -1 * std::floor(log10(value)));
+
+    if (dimension >= 5)
+        result = 5;
+    else if (dimension >= 2)
+        result = 2;
+    else if (dimension >= 0.99)
+        result = 1;
+    else
+        result = 0;
+
+    qDebug() << sign * value << value << transform << result << sign * result * qPow(10, -1 * floor(transform));
+    return sign * result * qPow(10, transform);
+}
+
+inline qreal NiceScalingMax(qreal value)
+{
+    int sign = 1;
+    if (value < 0)
+        sign = -1;
+    value = qAbs(value);
+
+    qreal result = value;
+
+    qreal transform = -1 * std::ceil(log10(value));
+    qreal dimension = qPow(10, -1 * std::floor(log10(value)));
+
+    if (dimension > 0.9 && dimension <= 2)
+        result = 2;
+    else if (dimension <= 5)
+        result = 5;
+    else
+        result = 10;
+
+    qDebug() << sign * value << value << transform << result << sign * result * qPow(10, -1 * floor(transform));
+    return sign * result * qPow(10, transform);
+}
+
+inline void IdealInterval(qreal& min, qreal& max, qreal& start, qreal& step)
+{
+    if (min * max > 0) {
+        if (min / max < 0.125)
+            min = 0;
+    } else if (min * max < 0) {
+        if (min / max > -0.125)
+            max = 0;
+    }
+
+    qreal difference = max - min;
+    qreal dim = qPow(10, -1 * std::floor(log10(difference)));
+    qreal tmp_diff = std::ceil(difference * dim);
+
+    if (tmp_diff < 1)
+        step = std::ceil(1 / dim);
+    else if (tmp_diff < 6)
+        step = std::ceil(2 / dim);
+    else
+        step = std::ceil(5 / dim);
+    start = min;
+
+    qreal tmp = start;
+    while (tmp < max)
+        tmp += step;
+    max = tmp;
+
+    qDebug() << min << max << difference << dim;
+}
 
 inline qreal scale(qreal value, qreal& pow)
 {

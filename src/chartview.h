@@ -20,6 +20,8 @@
 #pragma once
 
 #include "chartconfig.h"
+#include "chartviewprivate.h"
+#include "tools.h"
 
 #include <QtWidgets/QGraphicsTextItem>
 
@@ -40,99 +42,6 @@ class QChart;
 class PeakCallOut;
 
 struct ChartConfig;
-
-enum ZoomStrategy {
-    Z_None = 0,
-    Z_Horizontal = 1,
-    Z_Vertical = 2,
-    Z_Rectangular = 3
-};
-
-enum SelectStrategy {
-    S_None = 0,
-    S_Horizontal = 1,
-    S_Vertical = 2,
-    S_Rectangular = 3
-};
-
-enum AutoScaleStrategy {
-    QtNiceNumbers = 0,
-    SpaceScale = 1
-};
-
-class ChartViewPrivate : public QtCharts::QChartView {
-    Q_OBJECT
-public:
-    ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent = Q_NULLPTR);
-
-    inline ~ChartViewPrivate() override {}
-
-    inline void setZoomStrategy(ZoomStrategy strategy) { m_zoom_strategy = strategy; }
-    inline void setSelectStrategy(SelectStrategy strategy) { m_select_strategy = strategy; }
-
-    inline ZoomStrategy CurrentZoomStrategy() const { return m_zoom_strategy; }
-    inline SelectStrategy CurrentSelectStrategy() const { return m_select_strategy; }
-
-    inline bool isVerticalLineEnabled() const { return m_vertical_line_visible; }
-
-    QPointF currentMousePosition() const;
-public slots:
-    void UpdateVerticalLine(double x);
-
-    void UpdateView(double min, double max);
-
-    void setVerticalLineEnabled(bool enabled);
-
-    void setZoom(qreal x_min, qreal x_max, qreal y_min, qreal y_max);
-    void UpdateZoom();
-
-    void setSelectBox(const QPointF& topleft, const QPointF& bottomright);
-
-protected:
-    virtual void mousePressEvent(QMouseEvent* event) override;
-    virtual void mouseReleaseEvent(QMouseEvent* event) override;
-    virtual void mouseMoveEvent(QMouseEvent* event) override;
-    virtual void wheelEvent(QWheelEvent* event) override;
-    virtual void keyPressEvent(QKeyEvent* event) override;
-    virtual void mouseDoubleClickEvent(QMouseEvent* event) override;
-
-private:
-    void handleMouseMoved(const QPointF& ChartPoint);
-
-    void RectanglStart();
-    QPair<QPointF, QPointF> getCurrentRectangle();
-    QPointF mapToPoint(QMouseEvent* event) const;
-    QPointF mapToPoint(const QPointF& event) const;
-
-    QPointF m_border_start, m_border_end;
-
-    void UpdateCorner();
-
-    QGraphicsLineItem* m_vertical_line;
-    QGraphicsTextItem* m_line_position;
-    QGraphicsRectItem *m_zoom_box, *m_select_box;
-
-    QPointF m_rect_start, m_upperleft, m_lowerright;
-    double m_x_min, m_x_max, m_y_min, m_y_max;
-
-    bool m_single_left_click = false, m_single_right_click = false, m_double_right_clicked = false, m_vertical_line_visible = false, m_zoom_pending = false, m_select_pending = false;
-    bool m_box_started = false, m_box_bounded = false;
-
-    ZoomStrategy m_zoom_strategy, m_saved_zoom_strategy;
-    SelectStrategy m_select_strategy, m_saved_select_strategy;
-signals:
-    void LockZoom();
-    void UnLockZoom();
-    void ZoomChanged();
-    void scaleUp();
-    void scaleDown();
-    void AddRect(const QPointF& point1, const QPointF& point2);
-    void ZoomRect(const QPointF& point1, const QPointF& point2);
-    void PointDoubleClicked(const QPointF& point);
-    void EscapeSelectMode();
-    void RightKey();
-    void LeftKey();
-};
 
 class ChartView : public QScrollArea {
     Q_OBJECT
@@ -194,30 +103,32 @@ public:
     inline void setXRange(qreal xmin, qreal xmax)
     {
         if (m_hasAxis) {
-            m_XAxis->setMin(xmin);
-            m_XAxis->setMax(xmax);
+            m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
+            m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
+            m_XAxis->setTickInterval(ChartTools::ceil(xmax + xmin) / 10.0);
         }
     }
 
     inline void setXMax(qreal xmax)
     {
         if (m_hasAxis) {
-            m_XAxis->setMax(xmax);
+            m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
         }
     }
 
     inline void setXMin(qreal xmin)
     {
         if (m_hasAxis) {
-            m_XAxis->setMin(xmin);
+            m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
         }
     }
 
     inline void setYRange(qreal ymin, qreal ymax)
     {
         if (m_hasAxis) {
-            m_YAxis->setMin(ymin);
-            m_YAxis->setMax(ymax);
+            m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
+            m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
+            m_YAxis->setTickInterval(ChartTools::ceil(ymax + ymin) / 10.0);
             m_chart_private->UpdateView(ymin, ymax);
         }
     }
@@ -225,14 +136,14 @@ public:
     inline void setYMax(qreal ymax)
     {
         if (m_hasAxis) {
-            m_YAxis->setMax(ymax);
+            m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
         }
     }
 
     inline void setYMin(qreal ymin)
     {
         if (m_hasAxis) {
-            m_YAxis->setMin(ymin);
+            m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
         }
     }
 
