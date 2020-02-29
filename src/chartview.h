@@ -100,50 +100,72 @@ public:
             return 0;
     }
 
-    inline void setXRange(qreal xmin, qreal xmax)
+    inline void setXRange(qreal xmin, qreal xmax, bool nice = false)
     {
         if (m_hasAxis) {
-            m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
-            m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
+            if (nice) {
+                m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
+                m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
+            } else {
+                m_XAxis->setMin(xmin);
+                m_XAxis->setMax(xmax);
+            }
             m_XAxis->setTickInterval(ChartTools::ceil(xmax + xmin) / 10.0);
         }
     }
 
-    inline void setXMax(qreal xmax)
+    inline void setXMax(qreal xmax, bool nice = false)
     {
         if (m_hasAxis) {
-            m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
+            if (nice)
+                m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
+            else
+                m_XAxis->setMax(xmax);
         }
     }
 
-    inline void setXMin(qreal xmin)
+    inline void setXMin(qreal xmin, bool nice = false)
     {
         if (m_hasAxis) {
-            m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
+            if (nice)
+                m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
+            else
+                m_XAxis->setMin(xmin);
         }
     }
 
-    inline void setYRange(qreal ymin, qreal ymax)
+    inline void setYRange(qreal ymin, qreal ymax, bool nice = false)
     {
         if (m_hasAxis) {
-            m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
-            m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
+            if (nice) {
+                m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
+                m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
+            } else {
+                m_YAxis->setMin(ymin);
+                m_YAxis->setMax(ymax);
+            }
             m_YAxis->setTickInterval(ChartTools::ceil(ymax + ymin) / 10.0);
             m_chart_private->UpdateView(ymin, ymax);
         }
     }
 
-    inline void setYMax(qreal ymax)
+    inline void setYMax(qreal ymax, bool nice)
     {
         if (m_hasAxis) {
-            m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
+            if (nice)
+                m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
+            else
+                m_YAxis->setMax(ymax);
         }
     }
 
-    inline void setYMin(qreal ymin)
+    inline void setYMin(qreal ymin, bool nice)
     {
         if (m_hasAxis) {
-            m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
+            if (nice)
+                m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
+            else
+                m_YAxis->setMin(ymin);
         }
     }
 
