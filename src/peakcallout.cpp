@@ -58,7 +58,7 @@ void PeakCallOut::paint(QPainter* painter, const QStyleOptionGraphicsItem* optio
         width = fm.horizontalAdvance(m_text) - fm.horizontalAdvance(m_text) / 2;
         height = -50;
     }
-    qreal x = m_chart->mapToPosition(m_anchor).x() - width / 4;
+    qreal x = m_chart->mapToPosition(m_anchor).x() - width;
     qreal y = m_chart->mapToPosition(m_anchor).y() - height - 120;
     setPos(x, y);
 
@@ -103,7 +103,7 @@ void PeakCallOut::Update()
     QFontMetrics metrics(font());
     QTextDocument doc;
     doc.setHtml(m_htmltext);
-    m_textRect = metrics.boundingRect(QRect(0, 0, 250, 250), Qt::AlignLeft, m_text);
+    m_textRect = metrics.boundingRect(QRect(0, 0, 300, 300), Qt::AlignLeft, m_htmltext);
     prepareGeometryChange();
     m_rect = m_textRect.adjusted(0, 0, 0, 0);
     if (doc.size().width() > 60) {
