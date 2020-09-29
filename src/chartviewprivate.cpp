@@ -234,8 +234,8 @@ void ChartViewPrivate::wheelEvent(QWheelEvent* event)
 
     QPointF inPoint;
     QPointF chartPoint;
-    inPoint.setX(event->x());
-    inPoint.setY(event->y());
+    inPoint.setX(event->position().x());
+    inPoint.setY(event->position().y());
     chartPoint = chart()->mapToValue(inPoint);
 
     event->ignore();

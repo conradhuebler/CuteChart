@@ -91,9 +91,9 @@ void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QC
         item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, index);
         if (qobject_cast<QtCharts::QXYSeries*>(series))
-            item->setBackgroundColor(qobject_cast<QtCharts::QXYSeries*>(series)->color());
+            item->setBackground(qobject_cast<QtCharts::QXYSeries*>(series)->color());
         else
-            item->setBackgroundColor(color);
+            item->setBackground(color);
         m_list->addItem(item);
         item->setData(Qt::UserRole + 1, QVariant::fromValue(series));
     }
@@ -101,7 +101,7 @@ void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QC
     QtCharts::QXYSeries* s = qobject_cast<QtCharts::QXYSeries*>(series);
     if (s && item != NULL)
         connect(s, &QtCharts::QXYSeries::colorChanged, this, [item](const QColor& color) {
-            item->setBackgroundColor(color);
+            item->setBackground(color);
         });
 
     if (!m_names_list->findItems(name, Qt::MatchExactly).size()) {
@@ -131,7 +131,7 @@ QtCharts::QLineSeries* ListChart::addLinearSeries(qreal m, qreal n, qreal min, q
 void ListChart::setColor(int index, const QColor& color)
 {
     if (index < m_list->count())
-        m_list->item(index)->setBackgroundColor(color);
+        m_list->item(index)->setBackground(color);
 }
 
 void ListChart::Clear()
@@ -207,7 +207,7 @@ void ListChart::ChangeColor()
     QColor color = QColorDialog::getColor(tr("Choose Color for Series"));
 
     if (qobject_cast<QtCharts::QXYSeries*>(series)) {
-        item->setBackgroundColor(color);
+        item->setBackground(color);
         qobject_cast<QtCharts::QXYSeries*>(series)->setColor(color);
     }
     if (qobject_cast<QtCharts::QScatterSeries*>(series)) {

@@ -55,7 +55,7 @@ void PeakCallOut::paint(QPainter* painter, const QStyleOptionGraphicsItem* optio
     int height = -100;
     if (!flip) {
         QFontMetrics fm = painter->fontMetrics();
-        width = fm.width(m_text) - fm.width(m_text) / 2;
+        width = fm.horizontalAdvance(m_text) - fm.horizontalAdvance(m_text) / 2;
         height = -50;
     }
     qreal x = m_chart->mapToPosition(m_anchor).x() - width / 4;
