@@ -57,6 +57,8 @@ ChartViewPrivate::ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent)
     , m_vertical_line_visible(false)
     , m_zoom_strategy(Z_None)
     , m_select_strategy(S_None)
+    , m_chart(chart)
+
 {
     setChart(chart);
     // setAcceptDrops(true);
@@ -266,6 +268,108 @@ void ChartViewPrivate::setSelectBox(const QPointF& topleft, const QPointF& botto
     setFocus();
 }
 
+void ChartViewPrivate::addHorizontalLine(double position_y)
+{
+    QGraphicsLineItem* line = new QGraphicsLineItem(m_chart);
+    QPen pen;
+    pen.setWidth(2);
+    pen.setColor(Qt::darkGray);
+    line->setPen(pen);
+    line->show();
+
+    QGraphicsTextItem* text = new QGraphicsTextItem(m_chart);
+
+    m_horizontal_lines.insert(position_y, line);
+    m_horizontal_lines_position.insert(position_y, text);
+    UpdateLines();
+}
+
+void ChartViewPrivate::addVerticalLine(double position_y)
+{
+    QGraphicsLineItem* line = new QGraphicsLineItem(m_chart);
+    QPen pen;
+    pen.setWidth(2);
+    pen.setColor(Qt::darkGray);
+    line->setPen(pen);
+    line->show();
+
+    QGraphicsTextItem* text = new QGraphicsTextItem(m_chart);
+
+    m_vertical_lines.insert(position_y, line);
+    m_vertical_lines_position.insert(position_y, text);
+    UpdateLines();
+}
+
+bool ChartViewPrivate::removeVerticalLine(double position_y)
+{
+    if (m_vertical_lines.contains(position_y)) {
+        delete m_vertical_lines_position[position_y];
+        delete m_vertical_lines[position_y];
+        m_vertical_lines_position.remove(position_y);
+        m_vertical_lines.remove(position_y);
+        return true;
+    } else
+        return false;
+}
+
+bool ChartViewPrivate::removeHorizontalLine(double position_y)
+{
+    if (m_horizontal_lines.contains(position_y)) {
+        delete m_horizontal_lines_position[position_y];
+        delete m_horizontal_lines[position_y];
+        m_horizontal_lines.remove(position_y);
+        m_horizontal_lines_position.remove(position_y);
+        return true;
+    } else
+        return false;
+}
+
+void ChartViewPrivate::removeAllHorizontalLines()
+{
+    qDeleteAll(m_horizontal_lines);
+    qDeleteAll(m_horizontal_lines_position);
+    m_horizontal_lines.clear();
+    m_horizontal_lines_position.clear();
+}
+
+void ChartViewPrivate::removeAllVerticalLines()
+{
+    qDeleteAll(m_vertical_lines);
+    qDeleteAll(m_vertical_lines_position);
+    m_vertical_lines.clear();
+    m_vertical_lines_position.clear();
+}
+
+void ChartViewPrivate::UpdateLines()
+{
+    auto keys = m_vertical_lines.keys();
+    for (double x : keys) {
+        QPointF start = chart()->mapToPosition(QPointF(x, m_y_min));
+        QPointF end = chart()->mapToPosition(QPointF(x, 0.95 * m_y_max));
+
+        m_vertical_lines[x]->setLine(start.x(), start.y(), end.x(), end.y());
+
+        m_vertical_lines_position[x]->setPlainText(QString::number(x, 'f', m_horizontal_lines_prec));
+        QPointF position = chart()->mapToPosition(QPointF(x, 0.99 * m_y_max));
+
+        m_vertical_lines_position[x]->setPos(QPointF(position.x() + 20 * m_vertical_lines_position[x]->textWidth(), position.y()));
+
+        m_vertical_lines_position[x]->setVisible(m_vertical_lines_prec != -1);
+    }
+
+    keys = m_horizontal_lines.keys();
+    for (double y : keys) {
+        QPointF start = chart()->mapToPosition(QPointF(m_x_min, y));
+        QPointF end = chart()->mapToPosition(QPointF(0.95 * m_x_max, y));
+
+        m_horizontal_lines[y]->setLine(start.x(), start.y(), end.x(), end.y());
+
+        m_horizontal_lines_position[y]->setPos(chart()->mapToPosition(QPointF(y, 0.99 * m_y_max)));
+        m_horizontal_lines_position[y]->setPlainText(QString::number(y, 'f', m_vertical_lines_prec));
+        m_horizontal_lines_position[y]->setVisible(m_horizontal_lines_prec != -1);
+    }
+}
+
 void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
 {
     if (this->chart()->axes(Qt::Horizontal).isEmpty() || this->chart()->axes(Qt::Vertical).isEmpty()) {
@@ -307,9 +411,9 @@ void ChartViewPrivate::UpdateVerticalLine(double x)
     QPointF end = chart()->mapToPosition(QPointF(x, 0.95 * m_y_max));
 
     m_vertical_line->setLine(start.x(), start.y(), end.x(), end.y());
-
-    m_line_position->setPos(chart()->mapToPosition(QPointF(x, 0.99 * m_y_max)));
-    m_line_position->setPlainText(QString::number(x, 'f', 4));
+    m_line_position->setPlainText(QString::number(x, 'f', m_vertical_line_prec));
+    QPointF position = chart()->mapToPosition(QPointF(x, 0.99 * m_y_max));
+    m_line_position->setPos(position.x() + 20 * m_line_position->textWidth(), position.y());
 }
 
 void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)

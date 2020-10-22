@@ -62,7 +62,11 @@ class ChartViewPrivate : public QtCharts::QChartView {
 public:
     ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent = Q_NULLPTR);
 
-    inline ~ChartViewPrivate() override {}
+    inline ~ChartViewPrivate() override
+    {
+        removeAllHorizontalLines();
+        removeAllVerticalLines();
+    }
 
     inline void setZoomStrategy(ZoomStrategy strategy) { m_zoom_strategy = strategy; }
     inline void setSelectStrategy(SelectStrategy strategy) { m_select_strategy = strategy; }
@@ -73,6 +77,19 @@ public:
     inline bool isVerticalLineEnabled() const { return m_vertical_line_visible; }
 
     QPointF currentMousePosition() const;
+
+    void addVerticalLine(double position_x);
+    bool removeVerticalLine(double position_x);
+    void removeAllVerticalLines();
+
+    void addHorizontalLine(double position_y);
+    bool removeHorizontalLine(double position_y);
+    void removeAllHorizontalLines();
+
+    inline void setHorizontalLinesPrec(int prec) { m_horizontal_lines_prec = prec; }
+    inline void setVerticalLinesPrec(int prec) { m_vertical_lines_prec = prec; }
+    inline void setVerticalLinePrec(int prec) { m_vertical_line_prec = prec; }
+
 public slots:
     void UpdateVerticalLine(double x);
 
@@ -104,19 +121,26 @@ private:
     QPointF m_border_start, m_border_end;
 
     void UpdateCorner();
+    void UpdateLines();
 
     QGraphicsLineItem* m_vertical_line;
     QGraphicsTextItem* m_line_position;
     QGraphicsRectItem *m_zoom_box, *m_select_box;
 
+    QHash<double, QGraphicsLineItem*> m_vertical_lines, m_horizontal_lines;
+    QHash<double, QGraphicsTextItem*> m_vertical_lines_position, m_horizontal_lines_position;
+
     QPointF m_rect_start, m_upperleft, m_lowerright;
     double m_x_min, m_x_max, m_y_min, m_y_max;
+    int m_horizontal_lines_prec = 2, m_vertical_lines_prec = 2, m_vertical_line_prec = 4;
 
     bool m_single_left_click = false, m_single_right_click = false, m_double_right_clicked = false, m_vertical_line_visible = false, m_zoom_pending = false, m_select_pending = false;
     bool m_box_started = false, m_box_bounded = false;
 
     ZoomStrategy m_zoom_strategy, m_saved_zoom_strategy;
     SelectStrategy m_select_strategy, m_saved_select_strategy;
+
+    QtCharts::QChart* m_chart;
 signals:
     void LockZoom();
     void UnLockZoom();
