@@ -84,6 +84,8 @@ ChartViewPrivate::ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent)
     m_zoom_box = new QGraphicsRectItem(chart);
     m_zoom_box->setBrush(QColor::fromRgbF(0.18, 0.64, 0.71, 1));
     setMouseTracking(true);
+
+    connect(this, &ChartViewPrivate::ZoomChanged, this, &ChartViewPrivate::UpdateLines);
 }
 
 void ChartViewPrivate::UpdateView(double min, double max)
@@ -150,6 +152,9 @@ void ChartViewPrivate::setVerticalLineEnabled(bool enabled)
 void ChartViewPrivate::RectanglStart()
 {
     QPointF inPoint = (mapFromGlobal(QCursor::pos()));
+
+    m_saved_zoom_strategy = m_zoom_strategy;
+    m_saved_select_strategy = m_select_strategy;
 
     m_rect_start = mapToPoint(inPoint);
 
@@ -449,6 +454,7 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
             chart()->zoomIn(QRectF(rect.first, rect.second));
             ZoomRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
             UpdateZoom();
+            emit ZoomChanged();
             m_zoom_pending = false;
             m_single_left_click = false;
             m_zoom_box->hide();

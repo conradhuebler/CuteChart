@@ -59,6 +59,7 @@ enum AutoScaleStrategy {
 
 class ChartViewPrivate : public QtCharts::QChartView {
     Q_OBJECT
+
 public:
     ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent = Q_NULLPTR);
 

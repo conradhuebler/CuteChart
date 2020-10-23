@@ -126,7 +126,6 @@ void ChartView::setUi()
         m_autoscalestrategy = AutoScaleStrategy::SpaceScale;
         forceformatAxis();
         m_autoscalestrategy = strategy;
-
     });
 
     menu->addAction(scaleAction);
@@ -138,7 +137,6 @@ void ChartView::setUi()
         m_autoscalestrategy = AutoScaleStrategy::QtNiceNumbers;
         forceformatAxis();
         m_autoscalestrategy = strategy;
-
     });
     menu->addAction(MinMaxscaleAction);
 
@@ -395,7 +393,6 @@ void ChartView::ZoomRect(const QPointF& point1, const QPointF& point2)
 
 void ChartView::ScaleAxis(QPointer<QtCharts::QValueAxis> axis, qreal& min, qreal& max)
 {
-
     /*
     min  = ChartTools::NiceFloor(min);
     max = ChartTools::NiceCeil(max);
@@ -682,7 +679,6 @@ ChartConfig ChartView::ReadSettings()
     ChartConfig chartconfig = m_last_config;
     QSettings _settings;
     if (!_settings.contains(m_name)) {
-
         QFont font;
 
         if (!m_font.isNull() && !m_font.isEmpty())
@@ -721,7 +717,6 @@ ChartConfig ChartView::getChartConfig() const
 {
     ChartConfig chartconfig;
     if (m_hasAxis) {
-
         chartconfig.x_axis = m_XAxis->titleText();
         chartconfig.x_min = m_XAxis->min();
         chartconfig.x_max = m_XAxis->max();
@@ -753,7 +748,6 @@ QString ChartView::Color2RGB(const QColor& color) const
 
 void ChartView::ExportPNG()
 {
-
     const QString str = QFileDialog::getSaveFileName(this, tr("Save File"),
         qApp->instance()->property("lastDir").toString(),
         tr("Images (*.png)"));
@@ -831,9 +825,7 @@ void ChartView::ExportPNG()
     QList<int> size, width;
     QList<bool> openGl;
     for (QtCharts::QAbstractSeries* serie : m_chart->series()) {
-
         if (qobject_cast<QtCharts::QScatterSeries*>(serie)) {
-
             colors << qobject_cast<QtCharts::QScatterSeries*>(serie)->borderColor();
             qobject_cast<QtCharts::QScatterSeries*>(serie)->setBorderColor(Qt::transparent);
             size << qobject_cast<QtCharts::QScatterSeries*>(serie)->markerSize();
@@ -842,7 +834,6 @@ void ChartView::ExportPNG()
                 qobject_cast<QtCharts::QScatterSeries*>(serie)->setMarkerSize(m_markerSize);
 
         } else if (qobject_cast<LineSeries*>(serie)) {
-
             width << qobject_cast<LineSeries*>(serie)->LineWidth();
             qobject_cast<LineSeries*>(serie)->setSize(m_lineWidth / 10.0);
         }

@@ -35,7 +35,6 @@
 
 ListChart::ListChart()
 {
-
     m_chartview = new ChartView;
     connect(m_chartview, &ChartView::LastDirChanged, this, &ListChart::LastDirChanged);
 

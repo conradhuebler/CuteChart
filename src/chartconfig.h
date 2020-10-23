@@ -54,6 +54,7 @@ struct ChartConfig {
 
 class ChartConfigDialog : public QDialog {
     Q_OBJECT
+
 public:
     ChartConfigDialog(QWidget* widget);
     ~ChartConfigDialog();
