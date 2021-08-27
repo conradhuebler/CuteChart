@@ -38,6 +38,7 @@
 class QGridLayout;
 class QPushButton;
 class QChart;
+class QStackedWidget;
 
 class PeakCallOut;
 
@@ -213,7 +214,8 @@ public slots:
     void ZoomRect(const QPointF& point1, const QPointF& point2);
 
 private:
-    QWidget* mCentralHolder;
+    QStackedWidget* m_centralWidget;
+    QWidget* m_configure;
 
     QAction* m_lock_action;
     ChartViewPrivate* m_chart_private;
@@ -232,7 +234,7 @@ private:
     QVector<QPointer<PeakCallOut>> m_peak_anno;
     ChartConfig ReadSettings();
 
-    QAction *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
+    QAction *m_configure_series, *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
     QMenu *m_select_strategy, *m_zoom_strategy;
 
     ChartConfig m_last_config;
@@ -255,6 +257,7 @@ private slots:
     void setChartConfig(const ChartConfig& chartconfig);
     void forceformatAxis();
     void ResetFontConfig();
+    void Configure();
 
 signals:
     void AxisChanged();

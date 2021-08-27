@@ -1,5 +1,8 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.16.0)
 project(cutechart)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # As moc files are generated in the binary dir, tell CMake
 # to always look for includes there:
@@ -28,8 +31,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
                                            -Wno-error=unused-local-typedefs -Wno-error=enum-compare -Wno-narrowing")
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
-find_package(Qt5Widgets 5.12 CONFIG REQUIRED)
-find_package(Qt5Charts 5.12 CONFIG REQUIRED)
+
+find_package(Qt5 5.15 COMPONENTS Core Widgets Charts REQUIRED)
+
+#find_package(Qt5Widgets 5.12 CONFIG REQUIRED)
+#find_package(Qt5Charts 5.12 CONFIG REQUIRED)
 
 set(cutechart_SRC
     src/peakcallout.cpp
@@ -41,6 +47,6 @@ set(cutechart_SRC
     )
 
 add_library(cutechart ${cutechart_SRC})
-set_property(TARGET cutechart PROPERTY CXX_STANDARD 14)
+set_property(TARGET cutechart PROPERTY CXX_STANDARD 17)
 
-target_link_libraries(cutechart Qt5::Core Qt5::Widgets Qt5::Charts)
+target_link_libraries(cutechart Qt::Core Qt::Widgets Qt::Charts)

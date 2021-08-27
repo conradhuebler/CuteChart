@@ -47,6 +47,7 @@
 #include <QtWidgets/QLayout>
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QPushButton>
+#include <QtWidgets/QStackedWidget>
 
 #include <cmath>
 #include <iostream>
@@ -105,6 +106,11 @@ void ChartView::setUi()
     m_name = "chart";
     mCentralLayout = new QGridLayout;
     QMenu* menu = new QMenu(this);
+
+    m_configure_series = new QAction(this);
+    m_configure_series->setText(tr("Configure"));
+    connect(m_configure_series, SIGNAL(triggered()), this, SLOT(Configure()));
+    menu->addAction(m_configure_series);
 
     QAction* plotsettings = new QAction(this);
     plotsettings->setText(tr("Plot Settings"));
@@ -221,9 +227,16 @@ void ChartView::setUi()
     mCentralLayout->addWidget(m_chart_private, 0, 0, 1, 5);
     mCentralLayout->addWidget(m_config, 0, 4, Qt::AlignTop);
 
-    mCentralHolder = new QWidget;
-    mCentralHolder->setLayout(mCentralLayout);
-    setWidget(mCentralHolder);
+    QWidget* firstPageWidget = new QWidget;
+    m_configure = new QWidget;
+
+    m_centralWidget = new QStackedWidget;
+    m_centralWidget->addWidget(firstPageWidget);
+    m_centralWidget->addWidget(m_configure);
+
+    firstPageWidget->setLayout(mCentralLayout);
+
+    setWidget(m_centralWidget);
 
     m_chartconfigdialog = new ChartConfigDialog(this);
 
@@ -252,6 +265,14 @@ void ChartView::setUi()
     m_scaling = (qApp->instance()->property("chartScaling").toInt());
     m_lineWidth = (qApp->instance()->property("chartScaling").toDouble());
     m_markerSize = (qApp->instance()->property("markerSize").toDouble());
+}
+
+void ChartView::Configure()
+{
+    if (m_centralWidget->currentIndex() == 0)
+        m_centralWidget->setCurrentIndex(1);
+    else
+        m_centralWidget->setCurrentIndex(0);
 }
 
 void ChartView::setZoomStrategy(ZoomStrategy strategy)
@@ -767,11 +788,11 @@ void ChartView::ExportPNG()
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
     // first cache the original size, within SupraFit
-    QSize widgetSize = mCentralHolder->size();
+    QSize widgetSize = m_centralWidget->size();
 
     // and resize as set in settings
     m_chart->resize(m_x_size, m_y_size);
-    mCentralHolder->resize(m_x_size, m_y_size);
+    m_centralWidget->resize(m_x_size, m_y_size);
 
     for (PeakCallOut* call : m_peak_anno) {
         call->update();
@@ -912,7 +933,7 @@ void ChartView::ExportPNG()
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     // restore old size
-    mCentralHolder->resize(widgetSize);
+    m_centralWidget->resize(widgetSize);
 
     for (PeakCallOut* call : m_peak_anno)
         call->Update();
@@ -947,7 +968,7 @@ void ChartView::ApplyConfigurationChange(const QString& str)
 void ChartView::resizeEvent(QResizeEvent* event)
 {
     event->accept();
-    mCentralHolder->resize(0.99 * size());
+    m_centralWidget->resize(0.99 * size());
     /*
     if(event->size().width() > event->size().height()){
         QWidget::resize(event->size().height(),event->size().height());
