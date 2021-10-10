@@ -52,8 +52,8 @@
 
 #include "chartviewprivate.h"
 
-ChartViewPrivate::ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent)
-    : QtCharts::QChartView(parent)
+ChartViewPrivate::ChartViewPrivate(QChart* chart, QWidget* parent)
+    : QChartView(parent)
     , m_vertical_line_visible(false)
     , m_zoom_strategy(Z_None)
     , m_select_strategy(S_None)
@@ -120,11 +120,11 @@ QPointF ChartViewPrivate::mapToPoint(const QPointF& point) const
 
 void ChartViewPrivate::setZoom(qreal x_min, qreal x_max, qreal y_min, qreal y_max)
 {
-    QPointer<QtCharts::QValueAxis> yaxis = qobject_cast<QtCharts::QValueAxis*>(chart()->axes(Qt::Vertical).first());
+    QPointer<QValueAxis> yaxis = qobject_cast<QValueAxis*>(chart()->axes(Qt::Vertical).first());
     if (!yaxis)
         return;
 
-    QPointer<QtCharts::QValueAxis> xaxis = qobject_cast<QtCharts::QValueAxis*>(chart()->axes(Qt::Horizontal).first());
+    QPointer<QValueAxis> xaxis = qobject_cast<QValueAxis*>(chart()->axes(Qt::Horizontal).first());
     if (!xaxis)
         return;
 
@@ -468,7 +468,7 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
         if (chart()->axes(Qt::Vertical).isEmpty())
             return;
 
-        QPointer<QtCharts::QValueAxis> yaxis = qobject_cast<QtCharts::QValueAxis*>(chart()->axes(Qt::Vertical).first());
+        QPointer<QValueAxis> yaxis = qobject_cast<QValueAxis*>(chart()->axes(Qt::Vertical).first());
         if (!yaxis)
             return;
         UpdateView(yaxis->min(), yaxis->max());
@@ -492,11 +492,11 @@ void ChartViewPrivate::mouseDoubleClickEvent(QMouseEvent* event)
 
 void ChartViewPrivate::UpdateZoom()
 {
-    QPointer<QtCharts::QValueAxis> yaxis = qobject_cast<QtCharts::QValueAxis*>(chart()->axes(Qt::Vertical).first());
+    QPointer<QValueAxis> yaxis = qobject_cast<QValueAxis*>(chart()->axes(Qt::Vertical).first());
     if (!yaxis)
         return;
 
-    QPointer<QtCharts::QValueAxis> xaxis = qobject_cast<QtCharts::QValueAxis*>(chart()->axes(Qt::Horizontal).first());
+    QPointer<QValueAxis> xaxis = qobject_cast<QValueAxis*>(chart()->axes(Qt::Horizontal).first());
     if (!xaxis)
         return;
 

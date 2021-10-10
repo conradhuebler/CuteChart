@@ -63,7 +63,7 @@ ChartView::ChartView()
     , m_pending(false)
     , m_lock_scaling(false)
 {
-    m_chart = new QtCharts::QChart();
+    m_chart = new QChart();
     // m_chart->setLocalizeNumbers(true);
     m_chart_private = new ChartViewPrivate(m_chart, this);
 
@@ -96,9 +96,9 @@ ChartView::~ChartView()
 void ChartView::setAnimationEnabled(bool animation)
 {
     if (!animation)
-        m_chart->setAnimationOptions(QtCharts::QChart::NoAnimation);
+        m_chart->setAnimationOptions(QChart::NoAnimation);
     else
-        m_chart->setAnimationOptions(QtCharts::QChart::SeriesAnimations);
+        m_chart->setAnimationOptions(QChart::SeriesAnimations);
 }
 
 void ChartView::setUi()
@@ -110,7 +110,7 @@ void ChartView::setUi()
     m_configure_series = new QAction(this);
     m_configure_series->setText(tr("Configure"));
     connect(m_configure_series, SIGNAL(triggered()), this, SLOT(Configure()));
-    menu->addAction(m_configure_series);
+    //    menu->addAction(m_configure_series);
 
     QAction* plotsettings = new QAction(this);
     plotsettings->setText(tr("Plot Settings"));
@@ -293,21 +293,21 @@ void ChartView::setSelectStrategy(SelectStrategy strategy)
     m_select_rectangular->setChecked(strategy == SelectStrategy::S_Rectangular);
 }
 
-QtCharts::QLineSeries* ChartView::addLinearSeries(qreal m, qreal n, qreal min, qreal max)
+QLineSeries* ChartView::addLinearSeries(qreal m, qreal n, qreal min, qreal max)
 {
     qreal y_min = m * min + n;
     qreal y_max = m * max + n;
-    QtCharts::QLineSeries* series = new QtCharts::QLineSeries(this);
+    QLineSeries* series = new QLineSeries(this);
     series->append(min, y_min);
     series->append(max, y_max);
     addSeries(series);
     return series;
 }
 
-void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
+void ChartView::addSeries(QAbstractSeries* series, bool callout)
 {
     if (!m_chart->series().contains(series) || !series) {
-        QPointer<QtCharts::QXYSeries> serie = qobject_cast<QtCharts::QXYSeries*>(series);
+        QPointer<QXYSeries> serie = qobject_cast<QXYSeries*>(series);
         if (serie) {
             if (serie->points().size() > 5e3)
                 serie->setUseOpenGL(true);
@@ -325,13 +325,13 @@ void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
                 annotation->setZValue(11);
                 //annotation->updateGeometry();
                 annotation->show();
-                connect(series, &QtCharts::QAbstractSeries::visibleChanged, series, [series, annotation]() {
+                connect(series, &QAbstractSeries::visibleChanged, series, [series, annotation]() {
                     annotation->setVisible(series->isVisible());
                 });
-                connect(serie, &QtCharts::QXYSeries::colorChanged, serie, [serie, annotation]() {
+                connect(serie, &QXYSeries::colorChanged, serie, [serie, annotation]() {
                     annotation->setColor(serie->color());
                 });
-                connect(serie, &QtCharts::QXYSeries::nameChanged, serie, [serie, annotation, point]() {
+                connect(serie, &QXYSeries::nameChanged, serie, [serie, annotation, point]() {
                     annotation->setText(serie->name(), point);
                 });
                 annotation->setColor(serie->color());
@@ -341,12 +341,12 @@ void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
         m_chart->addSeries(series);
         if (!m_hasAxis) {
             m_chart->createDefaultAxes();
-            m_XAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axes(Qt::Horizontal).first());
-            m_YAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axes(Qt::Vertical).first());
+            m_XAxis = qobject_cast<QValueAxis*>(m_chart->axes(Qt::Horizontal).first());
+            m_YAxis = qobject_cast<QValueAxis*>(m_chart->axes(Qt::Vertical).first());
             // m_XAxis->setLabelFormat()
-            //m_XAxis->setTickType(QtCharts::QValueAxis::TicksDynamic);
+            //m_XAxis->setTickType(QValueAxis::TicksDynamic);
             //m_XAxis->setTickInterval(1);
-            //m_YAxis->setTickType(QtCharts::QValueAxis::TicksDynamic);
+            //m_YAxis->setTickType(QValueAxis::TicksDynamic);
             //m_YAxis->setTickInterval(1);
 
             m_hasAxis = true;
@@ -357,7 +357,7 @@ void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
         }
         m_series << series;
     }
-    connect(series, &QtCharts::QAbstractSeries::nameChanged, series, [this, series]() {
+    connect(series, &QAbstractSeries::nameChanged, series, [this, series]() {
         if (series) {
             //qDebug() << series->name();
 #pragma message("this can be compressed due to logic gatters")
@@ -365,7 +365,7 @@ void ChartView::addSeries(QtCharts::QAbstractSeries* series, bool callout)
             this->m_chart->legend()->markers(series).first()->setVisible(!show);
         }
     });
-    connect(series, &QtCharts::QAbstractSeries::visibleChanged, series, [this, series]() {
+    connect(series, &QAbstractSeries::visibleChanged, series, [this, series]() {
         if (series) {
             //qDebug() << series->name();
 #pragma message("this can be compressed due to logic gatters")
@@ -412,7 +412,7 @@ void ChartView::ZoomRect(const QPointF& point1, const QPointF& point2)
     m_chart_private->UpdateZoom();
 }
 
-void ChartView::ScaleAxis(QPointer<QtCharts::QValueAxis> axis, qreal& min, qreal& max)
+void ChartView::ScaleAxis(QPointer<QValueAxis> axis, qreal& min, qreal& max)
 {
     /*
     min  = ChartTools::NiceFloor(min);
@@ -476,8 +476,8 @@ void ChartView::SpaceScale()
     qreal y_max = 0;
     qreal y_min = 0;
     int start = 0;
-    for (QtCharts::QAbstractSeries* series : m_chart->series()) {
-        QPointer<QtCharts::QXYSeries> serie = qobject_cast<QtCharts::QXYSeries*>(series);
+    for (QAbstractSeries* series : m_chart->series()) {
+        QPointer<QXYSeries> serie = qobject_cast<QXYSeries*>(series);
         if (!serie)
             continue;
         if (!serie->isVisible())
@@ -522,8 +522,8 @@ void ChartView::QtNiceNumbersScale()
     qreal y_min = 1 * 1e12;
     int start = 0;
 
-    for (QtCharts::QAbstractSeries* series : m_chart->series()) {
-        QPointer<QtCharts::QXYSeries> serie = qobject_cast<QtCharts::QXYSeries*>(series);
+    for (QAbstractSeries* series : m_chart->series()) {
+        QPointer<QXYSeries> serie = qobject_cast<QXYSeries*>(series);
         if (!serie)
             continue;
         if (!serie->isVisible())
@@ -585,7 +585,7 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
     m_markerSize = chartconfig.markerSize;
     m_lineWidth = chartconfig.lineWidth;
 
-    // m_XAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisX());
+    // m_XAxis = qobject_cast<QValueAxis*>(m_chart->axisX());
     if (m_XAxis) {
         m_XAxis->setTitleText(chartconfig.x_axis);
         m_x_axis = chartconfig.x_axis;
@@ -596,7 +596,7 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
         m_XAxis->setLabelsFont(chartconfig.m_ticks);
         m_XAxis->setVisible(chartconfig.showAxis);
     }
-    //QPointer<QtCharts::QValueAxis> m_YAxis = qobject_cast<QtCharts::QValueAxis*>(m_chart->axisY());
+    //QPointer<QValueAxis> m_YAxis = qobject_cast<QValueAxis*>(m_chart->axisY());
     if (m_YAxis) {
         m_YAxis->setTitleText(chartconfig.y_axis);
         m_y_axis = chartconfig.y_axis;
@@ -628,20 +628,20 @@ void ChartView::setChartConfig(const ChartConfig& chartconfig)
 
     int Theme = chartconfig.Theme;
     if (Theme < 8)
-        m_chart->setTheme(static_cast<QtCharts::QChart::ChartTheme>(Theme));
+        m_chart->setTheme(static_cast<QChart::ChartTheme>(Theme));
     else {
         for (int i = 0; i < m_series.size(); ++i) {
             if (!m_series[i])
                 continue;
 
-            if (qobject_cast<QtCharts::QXYSeries*>(m_series[i])) {
-                QtCharts::QXYSeries* series = qobject_cast<QtCharts::QXYSeries*>(m_series[i]);
+            if (qobject_cast<QXYSeries*>(m_series[i])) {
+                QXYSeries* series = qobject_cast<QXYSeries*>(m_series[i]);
                 series->setColor(QColor("black"));
-                if (qobject_cast<QtCharts::QScatterSeries*>(series)) {
-                    qobject_cast<QtCharts::QScatterSeries*>(series)->setBorderColor(QColor("black"));
+                if (qobject_cast<QScatterSeries*>(series)) {
+                    qobject_cast<QScatterSeries*>(series)->setBorderColor(QColor("black"));
                 }
-            } else if (qobject_cast<QtCharts::QAreaSeries*>(m_series[i])) {
-                QtCharts::QAreaSeries* series = qobject_cast<QtCharts::QAreaSeries*>(m_series[i]);
+            } else if (qobject_cast<QAreaSeries*>(m_series[i])) {
+                QAreaSeries* series = qobject_cast<QAreaSeries*>(m_series[i]);
                 QLinearGradient gradient(QPointF(0, 0), QPointF(0, 1));
                 gradient.setColorAt(0.0, QColor("darkGray"));
                 gradient.setColorAt(1.0, QColor("lightGray"));
@@ -780,9 +780,9 @@ void ChartView::ExportPNG()
     bool verticalline = m_chart_private->isVerticalLineEnabled();
     m_chart_private->setVerticalLineEnabled(false);
 
-    QtCharts::QChart::AnimationOptions animation = m_chart->animationOptions();
+    QChart::AnimationOptions animation = m_chart->animationOptions();
 
-    m_chart->setAnimationOptions(QtCharts::QChart::NoAnimation);
+    m_chart->setAnimationOptions(QChart::NoAnimation);
 
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
@@ -845,14 +845,14 @@ void ChartView::ExportPNG()
     QList<QColor> colors;
     QList<int> size, width;
     QList<bool> openGl;
-    for (QtCharts::QAbstractSeries* serie : m_chart->series()) {
-        if (qobject_cast<QtCharts::QScatterSeries*>(serie)) {
-            colors << qobject_cast<QtCharts::QScatterSeries*>(serie)->borderColor();
-            qobject_cast<QtCharts::QScatterSeries*>(serie)->setBorderColor(Qt::transparent);
-            size << qobject_cast<QtCharts::QScatterSeries*>(serie)->markerSize();
+    for (QAbstractSeries* serie : m_chart->series()) {
+        if (qobject_cast<QScatterSeries*>(serie)) {
+            colors << qobject_cast<QScatterSeries*>(serie)->borderColor();
+            qobject_cast<QScatterSeries*>(serie)->setBorderColor(Qt::transparent);
+            size << qobject_cast<QScatterSeries*>(serie)->markerSize();
 
-            if (qobject_cast<QtCharts::QScatterSeries*>(serie)->markerSize() > m_markerSize)
-                qobject_cast<QtCharts::QScatterSeries*>(serie)->setMarkerSize(m_markerSize);
+            if (qobject_cast<QScatterSeries*>(serie)->markerSize() > m_markerSize)
+                qobject_cast<QScatterSeries*>(serie)->setMarkerSize(m_markerSize);
 
         } else if (qobject_cast<LineSeries*>(serie)) {
             width << qobject_cast<LineSeries*>(serie)->LineWidth();
@@ -911,10 +911,10 @@ void ChartView::ExportPNG()
     m_chart->setBackgroundBrush(brush_backup);
 
     // restore series colors and size
-    for (QtCharts::QAbstractSeries* serie : m_chart->series()) {
-        if (qobject_cast<QtCharts::QScatterSeries*>(serie)) {
-            qobject_cast<QtCharts::QScatterSeries*>(serie)->setBorderColor(colors.takeFirst());
-            qobject_cast<QtCharts::QScatterSeries*>(serie)->setMarkerSize(size.takeFirst());
+    for (QAbstractSeries* serie : m_chart->series()) {
+        if (qobject_cast<QScatterSeries*>(serie)) {
+            qobject_cast<QScatterSeries*>(serie)->setBorderColor(colors.takeFirst());
+            qobject_cast<QScatterSeries*>(serie)->setMarkerSize(size.takeFirst());
         } else if (qobject_cast<LineSeries*>(serie)) {
             qobject_cast<LineSeries*>(serie)->setSize(width.takeFirst());
         }
@@ -957,11 +957,11 @@ void ChartView::ApplyConfigurationChange(const QString& str)
     else {
         bool animation = qApp->instance()->property("chartanimation").toBool();
         if (animation)
-            m_chart->setAnimationOptions(QtCharts::QChart::SeriesAnimations);
+            m_chart->setAnimationOptions(QChart::SeriesAnimations);
         else
-            m_chart->setAnimationOptions(QtCharts::QChart::NoAnimation);
+            m_chart->setAnimationOptions(QChart::NoAnimation);
 
-        m_chart->setTheme(QtCharts::QChart::ChartTheme(qApp->instance()->property("charttheme").toInt()));
+        m_chart->setTheme(QChart::ChartTheme(qApp->instance()->property("charttheme").toInt()));
     }
 }
 

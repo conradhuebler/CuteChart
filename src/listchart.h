@@ -68,7 +68,7 @@ public:
     }
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override
     {
-        return QSize(150, QStyledItemDelegate::sizeHint(option, index).height());
+        return QSize(150, QStyledItemDelegate::sizeHint(option, index).height() * 1.5);
     }
 };
 
@@ -87,16 +87,16 @@ public:
     }
     inline qreal YMax() const { return m_chartview->YMax(); }
 
-    void addSeries(QtCharts::QAbstractSeries* series, int index, const QColor& color, QString name = QString(), bool callout = false);
+    void addSeries(QAbstractSeries* series, int index, const QColor& color, QString name = QString(), bool callout = false);
     void Clear();
-    QtCharts::QLineSeries* addLinearSeries(qreal m, qreal n, qreal min, qreal max, int index);
+    QLineSeries* addLinearSeries(qreal m, qreal n, qreal min, qreal max, int index);
 
-    inline void setAnimationOptions(QtCharts::QChart::AnimationOption option)
+    inline void setAnimationOptions(QChart::AnimationOption option)
     {
         m_chartview->Chart()->setAnimationOptions(option);
     }
 
-    inline void setTheme(QtCharts::QChart::ChartTheme theme)
+    inline void setTheme(QChart::ChartTheme theme)
     {
         m_chartview->Chart()->setTheme(theme);
     }
@@ -122,8 +122,8 @@ public slots:
 private:
     QListWidget *m_list, *m_names_list;
     ChartView* m_chartview;
-    //QtCharts::QChart* m_chart;
-    QMultiHash<int, QtCharts::QAbstractSeries*> m_series;
+    //QChart* m_chart;
+    QMultiHash<int, QAbstractSeries*> m_series;
     QHash<int, bool> m_hidden;
     QString m_name;
 

@@ -78,7 +78,7 @@ void ListChart::setYAxis(const QString& str)
     m_chartview->setYAxis(str);
 }
 
-void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QColor& color, QString name, bool callout)
+void ListChart::addSeries(QAbstractSeries* series, int index, const QColor& color, QString name, bool callout)
 {
     if (name.isEmpty() || name.isNull())
         name = series->name();
@@ -89,17 +89,17 @@ void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QC
     if (index >= m_list->count()) {
         item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, index);
-        if (qobject_cast<QtCharts::QXYSeries*>(series))
-            item->setBackground(qobject_cast<QtCharts::QXYSeries*>(series)->color());
+        if (qobject_cast<QXYSeries*>(series))
+            item->setBackground(qobject_cast<QXYSeries*>(series)->color());
         else
             item->setBackground(color);
         m_list->addItem(item);
         item->setData(Qt::UserRole + 1, QVariant::fromValue(series));
     }
 
-    QtCharts::QXYSeries* s = qobject_cast<QtCharts::QXYSeries*>(series);
+    QXYSeries* s = qobject_cast<QXYSeries*>(series);
     if (s && item != NULL)
-        connect(s, &QtCharts::QXYSeries::colorChanged, this, [item](const QColor& color) {
+        connect(s, &QXYSeries::colorChanged, this, [item](const QColor& color) {
             item->setBackground(color);
         });
 
@@ -120,9 +120,9 @@ void ListChart::addSeries(QtCharts::QAbstractSeries* series, int index, const QC
         m_names_list->show();
 }
 
-QtCharts::QLineSeries* ListChart::addLinearSeries(qreal m, qreal n, qreal min, qreal max, int index)
+QLineSeries* ListChart::addLinearSeries(qreal m, qreal n, qreal min, qreal max, int index)
 {
-    QtCharts::QLineSeries* serie = m_chartview->addLinearSeries(m, n, min, max);
+    QLineSeries* serie = m_chartview->addLinearSeries(m, n, min, max);
     m_series.insert(index, serie);
     return serie;
 }
@@ -152,7 +152,7 @@ void ListChart::NamesListClicked(QListWidgetItem* item)
 void ListChart::HideSeries(int index)
 {
     m_hidden[index] = !m_hidden[index];
-    QList<QtCharts::QAbstractSeries*> series = m_series.values(index);
+    QList<QAbstractSeries*> series = m_series.values(index);
     for (int j = 0; j < series.size(); ++j) {
         if (qobject_cast<BoxPlotSeries*>(series[j])) // visibility doesnt work for boxplots ??
             qobject_cast<BoxPlotSeries*>(series[j])->setVisible(m_hidden[index]);
@@ -184,7 +184,7 @@ void ListChart::ContextMenu(const QPoint& pos)
 void ListChart::RenameSeries()
 {
     QListWidgetItem* item = m_list->item(m_list->currentRow());
-    QtCharts::QAbstractSeries* series = item->data(Qt::UserRole + 1).value<QtCharts::QAbstractSeries*>();
+    QAbstractSeries* series = item->data(Qt::UserRole + 1).value<QAbstractSeries*>();
     //if()
     if (item->flags().testFlag(Qt::ItemIsEditable) == false) {
         item->setFlags(item->flags() | Qt::ItemIsEditable);
@@ -192,8 +192,8 @@ void ListChart::RenameSeries()
     } else {
         item->setFlags(item->flags() ^ Qt::ItemIsEditable);
         m_list->editItem(item);
-        if (qobject_cast<QtCharts::QXYSeries*>(series)) {
-            qobject_cast<QtCharts::QXYSeries*>(series)->setName(item->text());
+        if (qobject_cast<QXYSeries*>(series)) {
+            qobject_cast<QXYSeries*>(series)->setName(item->text());
         }
     }
 }
@@ -201,16 +201,16 @@ void ListChart::RenameSeries()
 void ListChart::ChangeColor()
 {
     QListWidgetItem* item = m_list->item(m_list->currentRow());
-    QtCharts::QAbstractSeries* series = item->data(Qt::UserRole + 1).value<QtCharts::QAbstractSeries*>();
+    QAbstractSeries* series = item->data(Qt::UserRole + 1).value<QAbstractSeries*>();
 
     QColor color = QColorDialog::getColor(tr("Choose Color for Series"));
 
-    if (qobject_cast<QtCharts::QXYSeries*>(series)) {
+    if (qobject_cast<QXYSeries*>(series)) {
         item->setBackground(color);
-        qobject_cast<QtCharts::QXYSeries*>(series)->setColor(color);
+        qobject_cast<QXYSeries*>(series)->setColor(color);
     }
-    if (qobject_cast<QtCharts::QScatterSeries*>(series)) {
-        qobject_cast<QtCharts::QScatterSeries*>(series)->setBorderColor(color);
+    if (qobject_cast<QScatterSeries*>(series)) {
+        qobject_cast<QScatterSeries*>(series)->setBorderColor(color);
     }
 }
 

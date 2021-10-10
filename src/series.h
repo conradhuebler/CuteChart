@@ -23,6 +23,8 @@
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
 
+#include <QtCharts>
+
 #include <QtCharts/QBoxPlotSeries>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
@@ -31,7 +33,7 @@
 
 #include "boxwhisker.h"
 
-class LineSeries : public QtCharts::QLineSeries {
+class LineSeries : public QLineSeries {
     Q_OBJECT
 
 public:
@@ -42,14 +44,14 @@ public slots:
     virtual void setColor(const QColor& color) override
     {
         m_color = color;
-        QPen pen = QtCharts::QLineSeries::pen();
+        QPen pen = QLineSeries::pen();
         pen.setColor(color);
         setPen(pen);
     }
     inline void setDashDotLine(bool dashdot)
     {
         m_dashdot = dashdot;
-        QPen pen = QtCharts::QLineSeries::pen();
+        QPen pen = QLineSeries::pen();
         if (m_dashdot)
             pen.setStyle(Qt::DashDotLine);
         else
@@ -59,7 +61,7 @@ public slots:
     inline void setSize(int size)
     {
         m_size = size;
-        QPen pen = QtCharts::QLineSeries::pen();
+        QPen pen = QLineSeries::pen();
         pen.setWidth(m_size);
         setPen(pen);
     }
@@ -75,7 +77,7 @@ public slots:
 private:
     inline void Update()
     {
-        QPen pen = QtCharts::QLineSeries::pen();
+        QPen pen = QLineSeries::pen();
 
         if (m_dashdot)
             pen.setStyle(Qt::DashDotLine);
@@ -91,7 +93,7 @@ private:
     QColor m_color;
 };
 
-class ScatterSeries : public QtCharts::QScatterSeries {
+class ScatterSeries : public QScatterSeries {
     Q_OBJECT
 
 public:
@@ -107,7 +109,7 @@ signals:
     void visibleChanged(int state);
 };
 
-class BoxPlotSeries : public QtCharts::QBoxPlotSeries {
+class BoxPlotSeries : public QBoxPlotSeries {
     Q_OBJECT
 
 public:

@@ -32,7 +32,6 @@
 
 class QGridLayout;
 class QPushButton;
-class QChart;
 
 class PeakCallOut;
 
@@ -57,11 +56,11 @@ enum AutoScaleStrategy {
     SpaceScale = 1
 };
 
-class ChartViewPrivate : public QtCharts::QChartView {
+class ChartViewPrivate : public QChartView {
     Q_OBJECT
 
 public:
-    ChartViewPrivate(QtCharts::QChart* chart, QWidget* parent = Q_NULLPTR);
+    ChartViewPrivate(QChart* chart, QWidget* parent = Q_NULLPTR);
 
     inline ~ChartViewPrivate() override
     {
@@ -141,7 +140,7 @@ private:
     ZoomStrategy m_zoom_strategy, m_saved_zoom_strategy;
     SelectStrategy m_select_strategy, m_saved_select_strategy;
 
-    QtCharts::QChart* m_chart;
+    QChart* m_chart;
 signals:
     void LockZoom();
     void UnLockZoom();

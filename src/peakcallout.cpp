@@ -31,7 +31,7 @@
 
 #include "peakcallout.h"
 
-PeakCallOut::PeakCallOut(QPointer<QtCharts::QChart> chart)
+PeakCallOut::PeakCallOut(QPointer<QChart> chart)
     : QGraphicsTextItem(chart)
     , m_chart(chart)
 {

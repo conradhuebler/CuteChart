@@ -26,6 +26,7 @@
 #include <QtWidgets/QGraphicsTextItem>
 
 #include <QtCharts/QAreaSeries>
+#include <QtCharts/QChart>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QValueAxis>
@@ -57,15 +58,15 @@ public:
     inline ZoomStrategy CurrentZoomStrategy() const { return m_chart_private->CurrentZoomStrategy(); }
     inline SelectStrategy CurrentSelectStrategy() const { return m_chart_private->CurrentSelectStrategy(); }
 
-    void addSeries(QtCharts::QAbstractSeries* series, bool callout = false);
+    void addSeries(QAbstractSeries* series, bool callout = false);
 
     void setAnimationEnabled(bool animation);
 
     qreal YMax() const { return m_ymax; }
-    inline void removeSeries(QtCharts::QAbstractSeries* series) { m_chart->removeSeries(series); }
-    inline QList<QtCharts::QAbstractSeries*> series() const { return m_chart->series(); }
+    inline void removeSeries(QAbstractSeries* series) { m_chart->removeSeries(series); }
+    inline QList<QAbstractSeries*> series() const { return m_chart->series(); }
 
-    QtCharts::QLineSeries* addLinearSeries(qreal m, qreal n, qreal min, qreal max);
+    QLineSeries* addLinearSeries(qreal m, qreal n, qreal min, qreal max);
     void ClearChart();
     inline void setModal(bool modal) { m_chartconfigdialog->setModal(modal); }
 
@@ -176,11 +177,11 @@ public:
         ReadSettings();
     }
 
-    QtCharts::QChart* Chart() { return m_chart; }
+    QChart* Chart() { return m_chart; }
     ChartViewPrivate* PrivateView() { return m_chart_private; }
 
-    QPointer<QtCharts::QValueAxis> axisY() const { return m_YAxis; }
-    QPointer<QtCharts::QValueAxis> axisX() const { return m_XAxis; }
+    QPointer<QValueAxis> axisY() const { return m_YAxis; }
+    QPointer<QValueAxis> axisX() const { return m_XAxis; }
 
     inline void setVerticalLineEnabled(bool enabled)
     {
@@ -219,7 +220,7 @@ private:
 
     QAction* m_lock_action;
     ChartViewPrivate* m_chart_private;
-    QPointer<QtCharts::QChart> m_chart;
+    QPointer<QChart> m_chart;
     QPushButton* m_config;
     void setUi();
     bool has_legend, connected, m_hasAxis = false, m_manual_zoom = false;
@@ -230,7 +231,7 @@ private:
     ChartConfigDialog* m_chartconfigdialog;
     bool m_pending, m_lock_scaling, m_modal = true;
     qreal m_ymax, m_ymin, m_xmin, m_xmax;
-    QVector<QPointer<QtCharts::QAbstractSeries>> m_series;
+    QVector<QPointer<QAbstractSeries>> m_series;
     QVector<QPointer<PeakCallOut>> m_peak_anno;
     ChartConfig ReadSettings();
 
@@ -240,9 +241,9 @@ private:
     ChartConfig m_last_config;
     void WriteSettings(const ChartConfig& chartconfig);
     QString m_name;
-    QPointer<QtCharts::QValueAxis> m_XAxis, m_YAxis;
+    QPointer<QValueAxis> m_XAxis, m_YAxis;
 
-    void ScaleAxis(QPointer<QtCharts::QValueAxis> axis, qreal& min, qreal& max);
+    void ScaleAxis(QPointer<QValueAxis> axis, qreal& min, qreal& max);
     QGridLayout* mCentralLayout;
 
     int m_x_size = 0, m_y_size = 0, m_scaling = 0;

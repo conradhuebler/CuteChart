@@ -49,7 +49,7 @@ void LineSeries::ShowLine(int state)
 
 void LineSeries::setName(const QString& str)
 {
-    QtCharts::QLineSeries::setName(str);
+    QLineSeries::setName(str);
 }
 
 ScatterSeries::ScatterSeries()
@@ -58,7 +58,7 @@ ScatterSeries::ScatterSeries()
 
 void ScatterSeries::setColor(const QColor& color)
 {
-    QPen pen = QtCharts::QScatterSeries::pen();
+    QPen pen = QScatterSeries::pen();
     //      pen.setStyle(Qt::DashDotLine);
     pen.setWidth(2);
     //      pen.setColor(color);
@@ -84,12 +84,12 @@ BoxPlotSeries::BoxPlotSeries(const BoxWhisker& boxwhisker)
 
 void BoxPlotSeries::LoadBoxWhisker()
 {
-    QtCharts::QBoxSet* box = new QtCharts::QBoxSet;
-    box->setValue(QtCharts::QBoxSet::LowerExtreme, m_boxwhisker.lower_whisker);
-    box->setValue(QtCharts::QBoxSet::UpperExtreme, m_boxwhisker.upper_whisker);
-    box->setValue(QtCharts::QBoxSet::Median, m_boxwhisker.median);
-    box->setValue(QtCharts::QBoxSet::LowerQuartile, m_boxwhisker.lower_quantile);
-    box->setValue(QtCharts::QBoxSet::UpperQuartile, m_boxwhisker.upper_quantile);
+    QBoxSet* box = new QBoxSet;
+    box->setValue(QBoxSet::LowerExtreme, m_boxwhisker.lower_whisker);
+    box->setValue(QBoxSet::UpperExtreme, m_boxwhisker.upper_whisker);
+    box->setValue(QBoxSet::Median, m_boxwhisker.median);
+    box->setValue(QBoxSet::LowerQuartile, m_boxwhisker.lower_quantile);
+    box->setValue(QBoxSet::UpperQuartile, m_boxwhisker.upper_quantile);
     append(box);
 }
 

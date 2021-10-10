@@ -23,6 +23,8 @@
 
 #include <QtWidgets/QGraphicsItem>
 
+#include <QtCharts>
+
 #include <QtCharts/QChartGlobal>
 #include <QtCharts/QChartView>
 
@@ -30,7 +32,7 @@ class QGraphicsSceneMouseEvent;
 
 class PeakCallOut : public QGraphicsTextItem {
 public:
-    PeakCallOut(QPointer<QtCharts::QChart> parent);
+    PeakCallOut(QPointer<QChart> parent);
 
     void setText(const QString& text, const QPointF& point);
     void setAnchor(QPointF point);
@@ -38,7 +40,7 @@ public:
 
     virtual QRectF boundingRect() const override;
     virtual void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
-    inline void setSeries(const QPointer<QtCharts::QAbstractSeries> serie) { m_serie = serie; }
+    inline void setSeries(const QPointer<QAbstractSeries> serie) { m_serie = serie; }
     void Update();
 
 public slots:
@@ -53,9 +55,9 @@ private:
     QRectF m_textRect;
     QRectF m_rect;
     QPointF m_anchor, m_text_position;
-    QPointer<QtCharts::QChart> m_chart;
+    QPointer<QChart> m_chart;
     bool flip = false;
     QColor m_color;
 
-    QPointer<QtCharts::QAbstractSeries> m_serie;
+    QPointer<QAbstractSeries> m_serie;
 };

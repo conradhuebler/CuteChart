@@ -19,7 +19,8 @@
 
 #include <QtGlobal>
 
-#include <QtWidgets/QAction>
+#include <QAction>
+
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QComboBox>
@@ -34,6 +35,8 @@
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QSpinBox>
+
+#include <QtCharts>
 
 #include <QtCharts/QChartView>
 
@@ -125,14 +128,14 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
     connect(m_annotation, &QCheckBox::stateChanged, this, &ChartConfigDialog::Changed);
 
     m_theme = new QComboBox;
-    m_theme->addItem("Light", QtCharts::QChart::ChartThemeLight);
-    m_theme->addItem("Blue Cerulean", QtCharts::QChart::ChartThemeBlueCerulean);
-    m_theme->addItem("Dark", QtCharts::QChart::ChartThemeDark);
-    m_theme->addItem("Brown Sand", QtCharts::QChart::ChartThemeBrownSand);
-    m_theme->addItem("Blue NCS", QtCharts::QChart::ChartThemeBlueNcs);
-    m_theme->addItem("High Contrast", QtCharts::QChart::ChartThemeHighContrast);
-    m_theme->addItem("Blue Icy", QtCharts::QChart::ChartThemeBlueIcy);
-    m_theme->addItem("Qt", QtCharts::QChart::ChartThemeQt);
+    m_theme->addItem("Light", QChart::ChartThemeLight);
+    m_theme->addItem("Blue Cerulean", QChart::ChartThemeBlueCerulean);
+    m_theme->addItem("Dark", QChart::ChartThemeDark);
+    m_theme->addItem("Brown Sand", QChart::ChartThemeBrownSand);
+    m_theme->addItem("Blue NCS", QChart::ChartThemeBlueNcs);
+    m_theme->addItem("High Contrast", QChart::ChartThemeHighContrast);
+    m_theme->addItem("Blue Icy", QChart::ChartThemeBlueIcy);
+    m_theme->addItem("Qt", QChart::ChartThemeQt);
     m_theme->addItem("Black 'n' White", 8);
     connect(m_theme, qOverload<int>(&QComboBox::currentIndexChanged), this, &ChartConfigDialog::Changed);
 
