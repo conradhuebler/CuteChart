@@ -174,7 +174,6 @@ public:
     inline void setName(const QString& name)
     {
         m_name = name;
-        ReadSettings();
     }
 
     QChart* Chart() { return m_chart; }
@@ -225,7 +224,7 @@ private:
     void setUi();
     bool has_legend, connected, m_hasAxis = false, m_manual_zoom = false;
     QString m_x_axis, m_y_axis;
-    ChartConfig getChartConfig() const;
+    QJsonObject getChartConfig() const;
     QString Color2RGB(const QColor& color) const;
     void WriteTable(const QString& str);
     ChartConfigDialog* m_chartconfigdialog;
@@ -233,13 +232,17 @@ private:
     qreal m_ymax, m_ymin, m_xmin, m_xmax;
     QVector<QPointer<QAbstractSeries>> m_series;
     QVector<QPointer<PeakCallOut>> m_peak_anno;
-    ChartConfig ReadSettings();
+    // ChartConfig ReadSettings();
 
     QAction *m_configure_series, *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
     QMenu *m_select_strategy, *m_zoom_strategy;
 
-    ChartConfig m_last_config;
-    void WriteSettings(const ChartConfig& chartconfig);
+    // ChartConfig m_last_config;
+    // void WriteSettings(const ChartConfig& chartconfig);
+
+    QJsonObject m_currentChartConfig;
+    // void WriteSettings(const QJsonObject& chartconfig);
+
     QString m_name;
     QPointer<QValueAxis> m_XAxis, m_YAxis;
 
@@ -254,8 +257,12 @@ private:
 
 private slots:
     void PlotSettings();
+    void SaveFontConfig();
+    void LoadFontConfig();
     void ExportPNG();
-    void setChartConfig(const ChartConfig& chartconfig);
+    void setChartConfig(const QJsonObject& chartconfig);
+    void setFontConfig(const QJsonObject& chartconfig);
+
     void forceformatAxis();
     void ResetFontConfig();
     void Configure();

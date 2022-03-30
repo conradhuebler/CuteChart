@@ -1,6 +1,6 @@
 /*
  * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2016 - 2019 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2016 - 2022 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@
 #include <QtCharts>
 
 #include <QtCharts/QChartView>
+
+#include <iostream>
 
 #include "chartconfig.h"
 
@@ -233,8 +235,9 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
     m_alignment->setMenu(align);
 
     connect(align, &QMenu::triggered, [this](QAction* action) {
-        m_chartconfig.align = Qt::Alignment(action->data().toInt());
-        emit ConfigChanged(Config());
+        // m_chartconfig.align = Qt::Alignment(action->data().toInt());
+        m_chart_config["Alignment"] = action->data().toInt();
+        emit ConfigChanged(ChartConfigJson());
     });
 
     QHBoxLayout* actions = new QHBoxLayout;
@@ -298,95 +301,162 @@ ChartConfigDialog::~ChartConfigDialog()
 {
 }
 
-void ChartConfigDialog::setConfig(const ChartConfig& chartconfig)
+void ChartConfigDialog::setChartConfig(const QJsonObject& chartconfig)
 {
     const QSignalBlocker blocker(this);
-    m_x_min->setValue(chartconfig.x_min);
-    m_x_max->setValue(chartconfig.x_max);
-    m_x_step->setValue(chartconfig.x_step);
-    m_y_min->setValue(chartconfig.y_min);
-    m_y_max->setValue(chartconfig.y_max);
-    m_y_step->setValue(chartconfig.y_step);
+    QJsonObject axis = chartconfig["xAxis"].toObject();
 
-    m_x_axis->setText(chartconfig.x_axis);
-    m_y_axis->setText(chartconfig.y_axis);
-    m_legend->setChecked(chartconfig.m_legend);
-    m_lock_scaling->setChecked(chartconfig.m_lock_scaling);
+    m_x_min->setValue(axis["Min"].toDouble());
+    m_x_max->setValue(axis["Max"].toDouble());
+    m_x_step->setValue(axis["TickCount"].toDouble());
+    m_x_axis->setText(axis["Label"].toString());
 
-    m_theme->setCurrentIndex(chartconfig.Theme);
+    axis = chartconfig["yAxis"].toObject();
+    m_y_min->setValue(axis["Min"].toDouble());
+    m_y_max->setValue(axis["Max"].toDouble());
+    m_y_step->setValue(axis["TickCount"].toDouble());
+    m_y_axis->setText(axis["Label"].toString());
 
-    m_title->setText(chartconfig.title);
+    /*
+    m_x_axis->setText(chartconfig["xTickFormat"].toString());
+    m_y_axis->setText(chartconfig["yTickFormat"].toString());
+    */
+    m_legend->setChecked(chartconfig["Legend"].toBool());
+    m_lock_scaling->setChecked(chartconfig["ScalingLocked"].toBool());
+    m_annotation->setChecked(chartconfig["Annotation"].toBool());
 
-    m_chartconfig = chartconfig;
+    m_theme->setCurrentIndex(chartconfig["Theme"].toInt());
+
+    m_title->setText(chartconfig["Title"].toString());
+
+    m_x_size->setValue(chartconfig["xSize"].toDouble());
+    m_y_size->setValue(chartconfig["ySize"].toDouble());
+    m_scaling->setValue(chartconfig["Scaling"].toDouble());
+    m_lineWidth->setValue(chartconfig["lineWidth"].toDouble());
+    m_markerSize->setValue(chartconfig["markerSize"].toDouble());
+    m_show_axis->setChecked(chartconfig["showAxis"].toDouble());
+
+    m_x_size->setValue(chartconfig["xSize"].toInt());
+    m_y_size->setValue(chartconfig["ySize"].toInt());
+
+    m_scaling->setValue(chartconfig["Scaling"].toInt());
+    m_markerSize->setValue(chartconfig["markerSize"].toDouble());
+    m_lineWidth->setValue(chartconfig["lineWidth"].toDouble());
+
+    m_chart_config = chartconfig;
 }
 
 void ChartConfigDialog::Changed()
 {
-    m_chartconfig.title = m_title->text();
+    m_chart_config["Title"] = m_title->text();
 
-    m_chartconfig.x_axis = m_x_axis->text();
-    m_chartconfig.y_axis = m_y_axis->text();
-    m_chartconfig.x_min = m_x_min->value();
-    m_chartconfig.x_max = m_x_max->value();
-    m_chartconfig.x_step = m_x_step->value();
+    QJsonObject xAxis;
+    xAxis["Label"] = m_x_axis->text();
+    xAxis["Min"] = m_x_min->value();
+    xAxis["Max"] = m_x_max->value();
+    xAxis["TickCount"] = m_x_step->value();
+    xAxis["showAxis"] = true;
+    xAxis["TitleFont"] = m_chart_config["xAxis"].toObject()["TitleFont"];
+    xAxis["TicksFont"] = m_chart_config["xAxis"].toObject()["TicksFont"];
 
-    m_chartconfig.y_min = m_y_min->value();
-    m_chartconfig.y_max = m_y_max->value();
-    m_chartconfig.y_step = m_y_step->value();
-    m_chartconfig.m_legend = m_legend->isChecked();
-    m_chartconfig.m_lock_scaling = m_lock_scaling->isChecked();
-    m_chartconfig.m_annotation = m_annotation->isChecked();
+    m_chart_config["xAxis"] = xAxis;
 
-    m_chartconfig.x_size = m_x_size->value();
-    m_chartconfig.y_size = m_y_size->value();
-    m_chartconfig.scaling = m_scaling->value();
-    m_chartconfig.lineWidth = m_lineWidth->value();
-    m_chartconfig.markerSize = m_markerSize->value();
+    xAxis["Label"] = m_y_axis->text();
+    xAxis["Min"] = m_y_min->value();
+    xAxis["Max"] = m_y_max->value();
+    xAxis["TickCount"] = m_y_step->value();
+    xAxis["TitleFont"] = m_chart_config["yAxis"].toObject()["TitleFont"];
+    xAxis["TicksFont"] = m_chart_config["yAxis"].toObject()["TicksFont"];
 
-    m_chartconfig.showAxis = m_show_axis->isChecked();
+    m_chart_config["yAxis"] = xAxis;
 
-    m_chartconfig.Theme = m_theme->currentIndex();
+    m_chart_config["Legend"] = m_legend->isChecked();
 
-    emit ConfigChanged(Config());
+    m_chart_config["ScalingLocked"] = m_lock_scaling->isChecked();
+
+    m_chart_config["Annotation"] = m_annotation->isChecked();
+
+    m_chart_config["xSize"] = m_x_size->value();
+
+    m_chart_config["ySize"] = m_y_size->value();
+
+    m_chart_config["Scaling"] = m_scaling->value();
+
+    m_chart_config["lineWidth"] = m_lineWidth->value();
+    m_chart_config["markerSize"] = m_markerSize->value();
+
+    m_chart_config["showAxis"] = true; // m_show_axis->isChecked();
+
+    m_chart_config["Theme"] = m_theme->currentIndex();
+
+    emit ConfigChanged(ChartConfigJson());
 }
 
 void ChartConfigDialog::setKeysFont()
 {
     bool ok;
-    QFont font = QFontDialog::getFont(&ok, m_chartconfig.m_keys, this);
+    QFont tmp;
+    tmp.fromString(m_chart_config["KeyFont"].toString());
+    QFont font = QFontDialog::getFont(&ok, tmp, this);
     if (ok) {
-        m_chartconfig.m_keys = font;
-        emit ConfigChanged(Config());
+        m_chart_config["KeyFont"] = font.toString();
+        emit ConfigChanged(ChartConfigJson());
     }
 }
 
 void ChartConfigDialog::setLabelFont()
 {
     bool ok;
-    QFont font = QFontDialog::getFont(&ok, m_chartconfig.m_label, this);
+    QFont tmp;
+    tmp.fromString(m_chart_config["xAxis"].toObject()["TitleFont"].toString());
+    QFont font = QFontDialog::getFont(&ok, tmp, this);
     if (ok) {
-        m_chartconfig.m_label = font;
-        emit ConfigChanged(Config());
+        QJsonObject fontObject;
+        QJsonObject axis = m_chart_config["xAxis"].toObject();
+        axis["TitleFont"] = font.toString();
+
+        m_chart_config["xAxis"] = axis;
+
+        axis = m_chart_config["yAxis"].toObject();
+        axis["TitleFont"] = font.toString();
+        m_chart_config["yAxis"] = axis;
+
+        emit ConfigChanged(ChartConfigJson());
     }
 }
 
 void ChartConfigDialog::setTicksFont()
 {
     bool ok;
-    QFont font = QFontDialog::getFont(&ok, m_chartconfig.m_ticks, this);
+    QFont tmp;
+    tmp.fromString(m_chart_config["xAxis"].toObject()["TicksFont"].toString());
+    QFont font = QFontDialog::getFont(&ok, tmp, this);
     if (ok) {
-        m_chartconfig.m_ticks = font;
-        emit ConfigChanged(Config());
+        m_chart_config["TicksFont"] = font.toString();
+        QJsonObject fontObject;
+        QJsonObject axis = m_chart_config["xAxis"].toObject();
+        axis["TicksFont"] = font.toString();
+
+        m_chart_config["xAxis"] = axis;
+
+        axis = m_chart_config["yAxis"].toObject();
+        axis["TicksFont"] = font.toString();
+        m_chart_config["yAxis"] = axis;
+        emit ConfigChanged(ChartConfigJson());
     }
 }
 
 void ChartConfigDialog::setTitleFont()
 {
     bool ok;
-    QFont font = QFontDialog::getFont(&ok, m_chartconfig.m_title, this);
+    QFont tmp;
+    tmp.fromString(m_chart_config["TitleFont"].toString());
+    QFont font = QFontDialog::getFont(&ok, tmp, this);
+    std::cout << font.toString().toStdString() << std::endl;
     if (ok) {
-        m_chartconfig.m_title = font;
-        emit ConfigChanged(Config());
+        m_chart_config["TitleFont"] = font.toString();
+
+        emit ConfigChanged(ChartConfigJson());
     }
 }
 #include "chartconfig.moc"

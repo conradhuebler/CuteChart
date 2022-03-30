@@ -1,6 +1,6 @@
 /*
  * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2016 - 2019  Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2016 - 2022  Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <QtCore/QJsonObject>
+
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDialog>
 
@@ -30,27 +32,6 @@ class QDoubleSpinBox;
 class QSpinBox;
 class QDialogButtonBox;
 
-struct ChartConfig {
-    QString x_axis = QString();
-    QString y_axis = QString();
-    QString title = QString();
-    qreal x_min = 0;
-    qreal x_max = 5;
-    int x_step = 5;
-    qreal y_min = 0;
-    qreal y_max = 7;
-    int x_size = qApp->instance()->property("xSize").toInt();
-    int y_size = qApp->instance()->property("ySize").toInt();
-    int scaling = qApp->instance()->property("chartScaling").toInt();
-    double markerSize = qApp->instance()->property("markerSize").toDouble();
-    double lineWidth = qApp->instance()->property("lineWidth").toDouble();
-
-    int y_step = 5;
-    int Theme = 0;
-    bool m_legend = false, m_lock_scaling = false, m_annotation = true, showAxis = true;
-    QFont m_label, m_ticks, m_keys, m_title;
-    Qt::Alignment align;
-};
 
 class ChartConfigDialog : public QDialog {
     Q_OBJECT
@@ -58,8 +39,8 @@ class ChartConfigDialog : public QDialog {
 public:
     ChartConfigDialog(QWidget* widget);
     ~ChartConfigDialog();
-    void setConfig(const ChartConfig& chartconfig);
-    inline ChartConfig Config() const { return m_chartconfig; }
+    void setChartConfig(const QJsonObject& chartconfig);
+    inline QJsonObject ChartConfigJson() const { return m_chart_config; }
     QDialogButtonBox* m_buttons;
 
 private:
@@ -67,9 +48,9 @@ private:
     QLineEdit *m_x_axis, *m_y_axis, *m_title;
     QDoubleSpinBox *m_x_min, *m_x_max, *m_y_min, *m_y_max, *m_markerSize, *m_lineWidth;
     QSpinBox *m_x_step, *m_y_step, *m_scaling, *m_x_size, *m_y_size;
-    ChartConfig m_chartconfig;
     QCheckBox *m_legend, *m_lock_scaling, *m_annotation, *m_show_axis;
     QComboBox* m_theme;
+    QJsonObject m_chart_config;
 
 private slots:
     void Changed();
@@ -79,7 +60,7 @@ private slots:
     void setTitleFont();
 
 signals:
-    void ConfigChanged(ChartConfig chartconfig);
+    void ConfigChanged(const QJsonObject& chartconfig);
     void ScaleAxis();
     void ResetFontConfig();
 };
