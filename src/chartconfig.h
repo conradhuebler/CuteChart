@@ -32,6 +32,7 @@ class QDoubleSpinBox;
 class QSpinBox;
 class QDialogButtonBox;
 
+class AxisConfig;
 
 class ChartConfigDialog : public QDialog {
     Q_OBJECT
@@ -44,19 +45,19 @@ public:
     QDialogButtonBox* m_buttons;
 
 private:
-    QPushButton *m_scaleaxis, *m_keys, *m_labels, *m_ticks, *m_alignment, *m_titlefont, *m_resetFontConfig;
-    QLineEdit *m_x_axis, *m_y_axis, *m_title;
-    QDoubleSpinBox *m_x_min, *m_x_max, *m_y_min, *m_y_max, *m_markerSize, *m_lineWidth;
-    QSpinBox *m_x_step, *m_y_step, *m_scaling, *m_x_size, *m_y_size;
+    AxisConfig *m_x_config, *m_y_config;
+    QPushButton *m_scaleaxis, *m_keys, *m_alignment, *m_titlefont, *m_resetFontConfig;
+    QLineEdit* m_title;
+    QDoubleSpinBox *m_markerSize, *m_lineWidth;
+    QSpinBox *m_scaling, *m_x_size, *m_y_size;
     QCheckBox *m_legend, *m_lock_scaling, *m_annotation, *m_show_axis;
     QComboBox* m_theme;
     QJsonObject m_chart_config;
 
+    QStringList m_number_format = { "%2.2f", "%2.5f" };
 private slots:
     void Changed();
-    void setTicksFont();
     void setKeysFont();
-    void setLabelFont();
     void setTitleFont();
 
 signals:

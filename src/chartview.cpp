@@ -1,6 +1,6 @@
 /*
  * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2016 - 2019 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2016 - 2022 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -351,11 +351,11 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
         if (!m_hasAxis) {
             m_chart->createDefaultAxes();
             m_XAxis = qobject_cast<QValueAxis*>(m_chart->axes(Qt::Horizontal).first());
-            m_XAxis->setLabelFormat("%2.2f");
             m_YAxis = qobject_cast<QValueAxis*>(m_chart->axes(Qt::Vertical).first());
-            m_YAxis->setLabelFormat("%2.5f");
 
-            // m_XAxis->setLabelFormat()
+            m_XAxis->setLabelFormat("%2.2f");
+            m_YAxis->setLabelFormat("%2.2f");
+
             //m_XAxis->setTickType(QValueAxis::TicksDynamic);
             //m_XAxis->setTickInterval(1);
             //m_YAxis->setTickType(QValueAxis::TicksDynamic);
@@ -541,7 +541,7 @@ void ChartView::QtNiceNumbersScale()
         if (!serie->isVisible())
             continue;
 
-        QVector<QPointF> points = serie->pointsVector();
+        QVector<QPointF> points = serie->points();
         if (start == 0 && points.size()) {
             y_min = points.first().y();
             y_max = points.first().y();
@@ -583,6 +583,26 @@ void ChartView::PlotSettings()
     m_chartconfigdialog->activateWindow();
 }
 
+void ChartView::UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
+{
+    axis->setTitleText(config["Title"].toString());
+
+    axis->setMin(config["Min"].toDouble());
+    axis->setMax(config["Max"].toDouble());
+    axis->setVisible(config["showAxis"].toBool());
+
+    QPointer<QValueAxis> valueaxis = qobject_cast<QValueAxis*>(axis);
+    if (valueaxis) {
+        valueaxis->setTickType(config["TickType"].toInt() == 0 ? QValueAxis::TicksDynamic : QValueAxis::TicksFixed);
+        valueaxis->setTickAnchor(config["TickAnchor"].toDouble());
+        valueaxis->setLabelFormat(config["TickFormat"].toString());
+        valueaxis->setTickInterval(config["TickInterval"].toDouble());
+        valueaxis->setTickCount(config["TickCount"].toInt());
+        valueaxis->setMinorTickCount(config["MinorTickCount"].toInt());
+        valueaxis->setMinorGridLineVisible(config["MinorVisible"].toBool());
+    }
+}
+
 void ChartView::setChartConfig(const QJsonObject& chartconfig)
 {
     m_currentChartConfig = chartconfig;
@@ -594,27 +614,8 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
 
     m_markerSize = chartconfig["markerSize"].toDouble();
     m_lineWidth = chartconfig["lineWidth"].toDouble();
-    if (m_XAxis) {
-        QJsonObject axis = chartconfig["xAxis"].toObject();
-
-        m_XAxis->setTitleText(axis["Label"].toString());
-        m_x_axis = axis["Label"].toString();
-        m_XAxis->setTickCount(axis["TickCount"].toInt());
-        m_XAxis->setMin(axis["Min"].toDouble());
-        m_XAxis->setMax(axis["Max"].toDouble());
-        m_XAxis->setVisible(axis["showAxis"].toBool());
-    }
-
-    if (m_YAxis) {
-        QJsonObject axis = chartconfig["yAxis"].toObject();
-
-        m_YAxis->setTitleText(axis["Label"].toString());
-        m_y_axis = axis["Label"].toString();
-        m_YAxis->setTickCount(axis["TickCount"].toInt());
-        m_YAxis->setMin(axis["Min"].toDouble());
-        m_YAxis->setMax(axis["Max"].toDouble());
-        m_YAxis->setVisible(axis["showAxis"].toBool());
-    }
+    UpdateAxisConfig(chartconfig["xAxis"].toObject(), m_XAxis);
+    UpdateAxisConfig(chartconfig["yAxis"].toObject(), m_YAxis);
 
     if (chartconfig["Legend"].toBool()) {
         m_chart->legend()->setVisible(true);
@@ -708,125 +709,33 @@ void ChartView::setFontConfig(const QJsonObject& chartconfig)
     m_chart->setTitleFont(font);
 }
 
-/*
-void ChartView::setChartConfig(const ChartConfig& chartconfig)
-{
-    m_last_config = chartconfig;
-
-    m_lock_scaling = chartconfig.m_lock_scaling;
-    m_lock_action->setChecked(m_lock_scaling);
-
-    m_x_size = chartconfig.x_size;
-    m_y_size = chartconfig.y_size;
-    m_scaling = chartconfig.scaling;
-
-    m_markerSize = chartconfig.markerSize;
-    m_lineWidth = chartconfig.lineWidth;
-
-    // m_XAxis = qobject_cast<QValueAxis*>(m_chart->axisX());
-    if (m_XAxis) {
-        m_XAxis->setTitleText(chartconfig.x_axis);
-        m_x_axis = chartconfig.x_axis;
-        m_XAxis->setTickCount(chartconfig.x_step);
-        m_XAxis->setMin(chartconfig.x_min);
-        m_XAxis->setMax(chartconfig.x_max);
-        m_XAxis->setTitleFont(chartconfig.m_label);
-        m_XAxis->setLabelsFont(chartconfig.m_ticks);
-        m_XAxis->setVisible(chartconfig.showAxis);
-    }
-    //QPointer<QValueAxis> m_YAxis = qobject_cast<QValueAxis*>(m_chart->axisY());
-    if (m_YAxis) {
-        m_YAxis->setTitleText(chartconfig.y_axis);
-        m_y_axis = chartconfig.y_axis;
-        m_YAxis->setTickCount(chartconfig.y_step);
-        m_YAxis->setMin(chartconfig.y_min);
-        m_YAxis->setMax(chartconfig.y_max);
-        m_YAxis->setTitleFont(chartconfig.m_label);
-        m_YAxis->setLabelsFont(chartconfig.m_ticks);
-        m_YAxis->setVisible(chartconfig.showAxis);
-    }
-
-    if (chartconfig.m_legend) {
-        m_chart->legend()->setVisible(true);
-        if (chartconfig.align == Qt::AlignTop
-            || chartconfig.align == Qt::AlignBottom
-            || chartconfig.align == Qt::AlignLeft
-            || chartconfig.align == Qt::AlignRight)
-            m_chart->legend()->setAlignment(chartconfig.align);
-        else
-            m_chart->legend()->setAlignment(Qt::AlignRight);
-        m_chart->legend()->setFont(chartconfig.m_keys);
-        for (PeakCallOut* call : m_peak_anno)
-            call->setFont(chartconfig.m_keys);
-    } else {
-        m_chart->legend()->setVisible(false);
-    }
-    setTitle(chartconfig.title);
-    m_chart->setTitleFont(chartconfig.m_title);
-
-    int Theme = chartconfig.Theme;
-    if (Theme < 8)
-        m_chart->setTheme(static_cast<QChart::ChartTheme>(Theme));
-    else {
-        for (int i = 0; i < m_series.size(); ++i) {
-            if (!m_series[i])
-                continue;
-
-            if (qobject_cast<QXYSeries*>(m_series[i])) {
-                QXYSeries* series = qobject_cast<QXYSeries*>(m_series[i]);
-                series->setColor(QColor("black"));
-                if (qobject_cast<QScatterSeries*>(series)) {
-                    qobject_cast<QScatterSeries*>(series)->setBorderColor(QColor("black"));
-                }
-            } else if (qobject_cast<QAreaSeries*>(m_series[i])) {
-                QAreaSeries* series = qobject_cast<QAreaSeries*>(m_series[i]);
-                QLinearGradient gradient(QPointF(0, 0), QPointF(0, 1));
-                gradient.setColorAt(0.0, QColor("darkGray"));
-                gradient.setColorAt(1.0, QColor("lightGray"));
-                gradient.setCoordinateMode(QGradient::ObjectBoundingMode);
-                series->setBrush(gradient);
-                series->setOpacity(0.4);
-                QPen pen(QColor("darkGray"));
-                pen.setWidth(3);
-                series->setPen(pen);
-            }
-            QBrush brush;
-            brush.setColor(Qt::transparent);
-            m_chart->setBackgroundBrush(brush);
-            m_chart->setTitleBrush(QBrush(Qt::black));
-            m_YAxis->setTitleBrush(QBrush(Qt::black));
-            m_XAxis->setTitleBrush(QBrush(Qt::black));
-            m_XAxis->setLabelsBrush(QBrush(Qt::black));
-            m_YAxis->setLabelsBrush(QBrush(Qt::black));
-
-            //m_chart->setStyleSheet("background-color: transparent;");
-        }
-        /* QFont font = chartconfig.m_title;
-        font.setPointSize(12);
-        m_chart->setTitleFont(font);
-        m_YAxis->setLabelsFont(font);
-        m_XAxis->setLabelsFont(font);
-        m_XAxis->setTitleFont(font);
-        m_YAxis->setTitleFont(font);
-
-        m_chart->legend()->setFont(font);
-        for (PeakCallOut* call : m_peak_anno)
-            call->setFont(font);
-        */
-/*
-    }
-    for (QPointer<PeakCallOut> & call : m_peak_anno) {
-        if (!call)
-            continue;
-        call->setVisible(chartconfig.m_annotation);
-        call->setFont(chartconfig.m_keys);
-    }
-}
-*/
-
 void ChartView::setTitle(const QString& str)
 {
     m_chart->setTitle(str);
+}
+
+QJsonObject ChartView::getAxisConfig(const QAbstractAxis* axis) const
+{
+    QJsonObject config;
+    config["Title"] = axis->titleText();
+
+    config["showAxis"] = axis->isVisible();
+
+    QPointer<const QValueAxis> valueaxis = qobject_cast<const QValueAxis*>(axis);
+    if (valueaxis) {
+        config["TickType"] = valueaxis->tickType() == QValueAxis::TicksDynamic ? 0 : 1;
+        config["TickAnchor"] = valueaxis->tickAnchor();
+        config["TickFormat"] = valueaxis->labelFormat();
+        config["TickInterval"] = valueaxis->tickInterval();
+        config["TickCount"] = valueaxis->tickCount();
+        config["MinorTickCount"] = valueaxis->minorTickCount();
+        config["MinorVisible"] = valueaxis->isMinorGridLineVisible();
+        config["Min"] = valueaxis->min();
+        config["Max"] = valueaxis->max();
+        config["TitleFont"] = valueaxis->titleFont().toString();
+        config["TicksFont"] = valueaxis->labelsFont().toString();
+    }
+    return config;
 }
 
 QJsonObject ChartView::getChartConfig() const
@@ -834,24 +743,8 @@ QJsonObject ChartView::getChartConfig() const
     QJsonObject chartconfig;
 
     if (m_hasAxis) {
-        QJsonObject Axis;
-        Axis["Label"] = m_XAxis->titleText();
-        Axis["Min"] = m_XAxis->min();
-        Axis["Max"] = m_XAxis->max();
-        Axis["TickCount"] = m_XAxis->tickCount();
-        Axis["TitleFont"] = m_XAxis->titleFont().toString();
-        Axis["TicksFont"] = m_XAxis->labelsFont().toString();
-
-        chartconfig["xAxis"] = Axis;
-
-        Axis["Label"] = m_YAxis->titleText();
-        Axis["Min"] = m_YAxis->min();
-        Axis["Max"] = m_YAxis->max();
-        Axis["TickCount"] = m_YAxis->tickCount();
-        Axis["TitleFont"] = m_YAxis->titleFont().toString();
-        Axis["TicksFont"] = m_YAxis->labelsFont().toString();
-
-        chartconfig["yAxis"] = Axis;
+        chartconfig["xAxis"] = getAxisConfig(m_XAxis);
+        chartconfig["yAxis"] = getAxisConfig(m_YAxis);
     }
     chartconfig["Legend"] = m_chart->legend()->isVisible();
     chartconfig["ScalingLocked"] = m_lock_scaling;
@@ -874,7 +767,7 @@ QString ChartView::Color2RGB(const QColor& color) const
 void ChartView::ExportPNG()
 {
     const QString str = QFileDialog::getSaveFileName(this, tr("Save File"),
-        qApp->instance()->property("lastDir").toString(),
+        qApp->instance()->property("lastDir").toString() + m_last_filename,
         tr("Images (*.png)"));
     if (str.isEmpty() || str.isNull())
         return;
@@ -1044,7 +937,7 @@ void ChartView::ExportPNG()
 
     // and nothing ever happens -> Lemon Tree
     m_chart->setAnimationOptions(animation);
-
+    m_last_filename = str;
     QFile file(str);
     file.open(QIODevice::WriteOnly);
     pixmap.save(&file, "PNG");

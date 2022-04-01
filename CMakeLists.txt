@@ -14,9 +14,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(Qt6 6.1 COMPONENTS Core Widgets Charts)
-if (NOT Qt6_FOUND)
-    find_package(Qt5 5.15 COMPONENTS Core Widgets Charts REQUIRED)
-endif()
 
 # Tell CMake to run moc when necessary:
 set(CMAKE_AUTOMOC ON)
@@ -43,6 +40,7 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
 set(cutechart_SRC
+    src/configwidgets/axisconfig.cpp
     src/peakcallout.cpp
     src/chartconfig.cpp
     src/chartviewprivate.cpp

@@ -1,20 +1,20 @@
 /*
  * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2016 - 2019 Conrad Hübler <Conrad.Huebler@gmx.net>
- * 
+ * Copyright (C) 2016 - 2022 Conrad Hübler <Conrad.Huebler@gmx.net>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #pragma once
@@ -190,6 +190,9 @@ public:
     inline void setFont(const QString& font) { m_font = font; }
     QPointF currentMousePosition() const { return m_chart_private->currentMousePosition(); }
 
+    QJsonObject CurrentChartConfig() const { return m_currentChartConfig; }
+    void setChartConfig(const QJsonObject& config);
+
 public slots:
     void setSelectBox(const QPointF& topleft, const QPointF& bottomright) { m_chart_private->setSelectBox(topleft, bottomright); }
 
@@ -232,18 +235,13 @@ private:
     qreal m_ymax, m_ymin, m_xmin, m_xmax;
     QVector<QPointer<QAbstractSeries>> m_series;
     QVector<QPointer<PeakCallOut>> m_peak_anno;
-    // ChartConfig ReadSettings();
 
     QAction *m_configure_series, *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
     QMenu *m_select_strategy, *m_zoom_strategy;
 
-    // ChartConfig m_last_config;
-    // void WriteSettings(const ChartConfig& chartconfig);
-
     QJsonObject m_currentChartConfig;
-    // void WriteSettings(const QJsonObject& chartconfig);
 
-    QString m_name;
+    QString m_name, m_last_filename;
     QPointer<QValueAxis> m_XAxis, m_YAxis;
 
     void ScaleAxis(QPointer<QValueAxis> axis, qreal& min, qreal& max);
@@ -255,12 +253,14 @@ private:
     QString m_font;
     AutoScaleStrategy m_autoscalestrategy;
 
+    void UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis);
+    QJsonObject getAxisConfig(const QAbstractAxis* axis) const;
+
 private slots:
     void PlotSettings();
     void SaveFontConfig();
     void LoadFontConfig();
     void ExportPNG();
-    void setChartConfig(const QJsonObject& chartconfig);
     void setFontConfig(const QJsonObject& chartconfig);
 
     void forceformatAxis();
