@@ -50,7 +50,7 @@ private:
     QLineEdit* m_title;
     QDoubleSpinBox *m_markerSize, *m_lineWidth;
     QSpinBox *m_scaling, *m_x_size, *m_y_size;
-    QCheckBox *m_legend, *m_lock_scaling, *m_annotation, *m_show_axis;
+    QCheckBox *m_legend, *m_lock_scaling, *m_annotation, *m_show_axis, *m_cropImage, *m_transparentImage, *emphasizeAxis, *noGrid;
     QComboBox* m_theme;
     QJsonObject m_chart_config;
 

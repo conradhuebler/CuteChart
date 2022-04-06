@@ -1,6 +1,6 @@
 /*
  * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2019 - 2020 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2019 - 2022 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QtCore/QDebug>
+#include <QtCore/QJsonObject>
 #include <QtMath>
 
 namespace ChartTools {
@@ -183,4 +184,15 @@ inline qreal floor(qreal value)
     return qreal(integer) * pot;
 }
 
+inline QJsonObject MergeJsonObject(const QJsonObject& target, const QJsonObject& inserted)
+{
+    QJsonObject result = target;
+    for (const QString& key : inserted.keys()) {
+        if (inserted[key].toObject().keys().size())
+            result[key] = MergeJsonObject(result[key].toObject(), inserted[key].toObject());
+        else
+            result[key] = inserted[key];
+    }
+    return result;
+}
 }

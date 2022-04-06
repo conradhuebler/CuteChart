@@ -225,6 +225,14 @@ void ChartView::setUi()
         m_zoom_rectangular->setChecked(select == ZoomStrategy::Z_Rectangular);
     });
 
+    m_ignore = new QPushButton(tr("Ignore"));
+    m_ignore->setMaximumWidth(100);
+
+    m_action_button = new QPushButton;
+    // m_action_button->setFlat(true);
+    m_action_button->setMaximumWidth(100);
+    connect(m_action_button, &QPushButton::clicked, this, &ChartView::ApplyConfigAction);
+
     m_config = new QPushButton(tr("Tools"));
     m_config->setFlat(true);
     m_config->setIcon(QIcon::fromTheme("applications-system"));
@@ -233,7 +241,17 @@ void ChartView::setUi()
     m_config->setMenu(menu);
 
     mCentralLayout->addWidget(m_chart_private, 0, 0, 1, 5);
+    mCentralLayout->addWidget(m_action_button, 0, 2, Qt::AlignTop);
+    mCentralLayout->addWidget(m_ignore, 0, 3, Qt::AlignTop);
     mCentralLayout->addWidget(m_config, 0, 4, Qt::AlignTop);
+
+    m_action_button->setHidden(true);
+    m_ignore->setHidden(true);
+    connect(m_ignore, &QPushButton::clicked, this, [this]() {
+        m_action_button->setHidden(true);
+        m_ignore->setHidden(true);
+        m_apply_action = 0;
+    });
 
     QWidget* firstPageWidget = new QWidget;
     m_configure = new QWidget;
@@ -249,7 +267,7 @@ void ChartView::setUi()
     m_chartconfigdialog = new ChartConfigDialog(this);
 
     connect(m_chartconfigdialog, &ChartConfigDialog::ConfigChanged, this, [this](const QJsonObject& config) {
-        this->setChartConfig(config);
+        this->UpdateChartConfig(config, true);
         emit ConfigurationChanged();
     });
     connect(m_chartconfigdialog, SIGNAL(ScaleAxis()), this, SLOT(forceformatAxis()));
@@ -347,7 +365,6 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             }
         }
         m_chart->addSeries(series);
-        // m_chart->setLocalizeNumbers(true);
         if (!m_hasAxis) {
             m_chart->createDefaultAxes();
             m_XAxis = qobject_cast<QValueAxis*>(m_chart->axes(Qt::Horizontal).first());
@@ -355,11 +372,6 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
 
             m_XAxis->setLabelFormat("%2.2f");
             m_YAxis->setLabelFormat("%2.2f");
-
-            //m_XAxis->setTickType(QValueAxis::TicksDynamic);
-            //m_XAxis->setTickInterval(1);
-            //m_YAxis->setTickType(QValueAxis::TicksDynamic);
-            //m_YAxis->setTickInterval(1);
 
             m_hasAxis = true;
             // ReadSettings();
@@ -495,7 +507,7 @@ void ChartView::SpaceScale()
         if (!serie->isVisible())
             continue;
 
-        QVector<QPointF> points = serie->pointsVector();
+        QVector<QPointF> points = serie->points();
         if (start == 0 && points.size()) {
             y_min = points.first().y();
             y_max = points.first().y();
@@ -577,7 +589,8 @@ void ChartView::PlotSettings()
 {
     if (!connected)
         return;
-    m_chartconfigdialog->setChartConfig(getChartConfig());
+    m_currentChartConfig = getChartConfig();
+    m_chartconfigdialog->setChartConfig(m_currentChartConfig);
     m_chartconfigdialog->show();
     m_chartconfigdialog->raise();
     m_chartconfigdialog->activateWindow();
@@ -603,38 +616,59 @@ void ChartView::UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
     }
 }
 
+void ChartView::UpdateChartConfig(const QJsonObject& config, bool force)
+{
+    QJsonObject tmp = ChartTools::MergeJsonObject(m_currentChartConfig, config);
+    if (force) {
+        setChartConfig(tmp);
+        m_apply_action = -1;
+        m_action_button->setText(tr("Revert"));
+        m_action_button->setStyleSheet("QPushButton {background-color: #BF593E; color: black;}");
+    } else {
+        m_pendingChartConfig = tmp;
+        m_apply_action = 1;
+        m_action_button->setText(tr("Apply"));
+        m_action_button->setStyleSheet("QPushButton {background-color: #00CC00; color: black;}");
+    }
+    m_action_button->setHidden(false);
+    m_ignore->setHidden(false);
+}
+
 void ChartView::setChartConfig(const QJsonObject& chartconfig)
 {
+    /* Something very strange is going on here, If I did not copy the const QJsonObject, the config get modifed (although const) - GCC and Clang Qt 6.2.3, Manjaro Linux */
+    QJsonObject config = chartconfig;
+    m_lastChartConfig = m_currentChartConfig;
     m_currentChartConfig = chartconfig;
 
-    m_lock_scaling = chartconfig["ScalingLocked"].toBool();
-    m_x_size = chartconfig["xSize"].toDouble();
-    m_y_size = chartconfig["ySize"].toDouble();
-    m_scaling = chartconfig["Scaling"].toDouble();
+    m_lock_scaling = config["ScalingLocked"].toBool();
+    m_x_size = config["xSize"].toDouble();
+    m_y_size = config["ySize"].toDouble();
+    m_scaling = config["Scaling"].toDouble();
 
-    m_markerSize = chartconfig["markerSize"].toDouble();
-    m_lineWidth = chartconfig["lineWidth"].toDouble();
-    UpdateAxisConfig(chartconfig["xAxis"].toObject(), m_XAxis);
-    UpdateAxisConfig(chartconfig["yAxis"].toObject(), m_YAxis);
+    m_markerSize = config["markerSize"].toDouble();
+    m_lineWidth = config["lineWidth"].toDouble();
+    UpdateAxisConfig(config["xAxis"].toObject(), m_XAxis);
+    UpdateAxisConfig(config["yAxis"].toObject(), m_YAxis);
 
-    if (chartconfig["Legend"].toBool()) {
+    if (config["Legend"].toBool()) {
         m_chart->legend()->setVisible(true);
-        if (chartconfig["Alignment"].toInt() == Qt::AlignTop
-            || chartconfig["Alignment"].toInt() == Qt::AlignBottom
-            || chartconfig["Alignment"].toInt() == Qt::AlignLeft
-            || chartconfig["Alignment"].toInt() == Qt::AlignRight)
-            m_chart->legend()->setAlignment(Qt::Alignment(chartconfig["Alignment"].toInt()));
+        if (config["Alignment"].toInt() == Qt::AlignTop
+            || config["Alignment"].toInt() == Qt::AlignBottom
+            || config["Alignment"].toInt() == Qt::AlignLeft
+            || config["Alignment"].toInt() == Qt::AlignRight)
+            m_chart->legend()->setAlignment(Qt::Alignment(config["Alignment"].toInt()));
         else
             m_chart->legend()->setAlignment(Qt::AlignRight);
-        m_chart->legend()->setFont(chartconfig["KeyFont"].toString());
+        m_chart->legend()->setFont(config["KeyFont"].toString());
         for (PeakCallOut* call : m_peak_anno)
-            call->setFont(chartconfig["KeyFont"].toString());
+            call->setFont(config["KeyFont"].toString());
     } else {
         m_chart->legend()->setVisible(false);
     }
-    setTitle(chartconfig["Title"].toString());
+    setTitle(config["Title"].toString());
 
-    int Theme = chartconfig["Theme"].toInt();
+    int Theme = config["Theme"].toInt();
     if (Theme < 8)
         m_chart->setTheme(static_cast<QChart::ChartTheme>(Theme));
     else {
@@ -668,17 +702,28 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
             m_XAxis->setTitleBrush(QBrush(Qt::black));
             m_XAxis->setLabelsBrush(QBrush(Qt::black));
             m_YAxis->setLabelsBrush(QBrush(Qt::black));
-
-            // m_chart->setStyleSheet("background-color: transparent;");
         }
     }
     for (QPointer<PeakCallOut>& call : m_peak_anno) {
         if (!call)
             continue;
-        call->setVisible(chartconfig["Annotation"].toBool());
-        call->setFont(chartconfig["KeyFont"].toString());
+        call->setVisible(config["Annotation"].toBool());
+        call->setFont(config["KeyFont"].toString());
     }
-    setFontConfig(chartconfig);
+    setFontConfig(config);
+    m_apply_action = 1;
+    m_action_button->setHidden(false);
+}
+
+void ChartView::ApplyConfigAction()
+{
+    if (m_apply_action == -1) {
+        setChartConfig(m_lastChartConfig);
+    } else if (m_apply_action == 1) {
+        setChartConfig(m_pendingChartConfig);
+    }
+    m_action_button->setHidden(true);
+    m_ignore->setHidden(true);
 }
 
 void ChartView::setFontConfig(const QJsonObject& chartconfig)
@@ -748,9 +793,14 @@ QJsonObject ChartView::getChartConfig() const
     }
     chartconfig["Legend"] = m_chart->legend()->isVisible();
     chartconfig["ScalingLocked"] = m_lock_scaling;
+    chartconfig["xSize"] = m_x_size;
+    chartconfig["ySize"] = m_y_size;
+    chartconfig["Scaling"] = m_scaling;
+    chartconfig["lineWidth"] = m_lineWidth;
+    chartconfig["markerSize"] = m_markerSize;
 
     chartconfig["KeyFont"] = m_chart->legend()->font().toString();
-    // chartconfig["Alignment"]  = m_chart->legend()->alignment().toInt();
+    chartconfig["Alignment"] = static_cast<int>(m_chart->legend()->alignment());
     chartconfig["Title"] = m_chart->title();
     chartconfig["TitleFont"] = m_chart->titleFont().toString();
 
@@ -812,7 +862,7 @@ void ChartView::ExportPNG()
     bool yGrid = m_YAxis->isGridLineVisible();
 
     // hide grid lines
-    if (qApp->instance()->property("noGrid").toBool() == true) {
+    if (m_currentChartConfig["noGrid"].toBool() == true) {
         m_XAxis->setGridLineVisible(false);
         m_YAxis->setGridLineVisible(false);
     }
@@ -825,7 +875,7 @@ void ChartView::ExportPNG()
     pen.setWidth(2);
 
     // make axis stronger
-    if (qApp->instance()->property("empAxis").toBool() == true) {
+    if (m_currentChartConfig["emphasizeAxis"].toBool() == true) {
         m_XAxis->setLinePen(pen);
         m_YAxis->setLinePen(pen);
     }
@@ -834,13 +884,13 @@ void ChartView::ExportPNG()
     brush.setColor(Qt::transparent);
 
     // remove background of chart
-    if (qApp->instance()->property("transparentChart").toBool() == true)
+    if (m_currentChartConfig["transparentImage"].toBool() == true)
         m_chart->setBackgroundBrush(brush);
 
     // cache all individual series size and border colors and remove border colors and resize series
 
     QList<QColor> colors;
-    QList<int> size, width;
+    QList<double> size, width;
     QList<bool> openGl;
     for (QAbstractSeries* serie : m_chart->series()) {
         if (qobject_cast<QScatterSeries*>(serie)) {
@@ -848,16 +898,17 @@ void ChartView::ExportPNG()
             qobject_cast<QScatterSeries*>(serie)->setBorderColor(Qt::transparent);
             size << qobject_cast<QScatterSeries*>(serie)->markerSize();
 
-            if (qobject_cast<QScatterSeries*>(serie)->markerSize() > m_markerSize)
-                qobject_cast<QScatterSeries*>(serie)->setMarkerSize(m_markerSize);
+            // if (qobject_cast<QScatterSeries*>(serie)->markerSize() != m_markerSize)
+            qobject_cast<QScatterSeries*>(serie)->setMarkerSize(m_markerSize);
 
         } else if (qobject_cast<LineSeries*>(serie)) {
             width << qobject_cast<LineSeries*>(serie)->LineWidth();
-            qobject_cast<LineSeries*>(serie)->setSize(m_lineWidth / 10.0);
+            qobject_cast<LineSeries*>(serie)->setLineWidth(m_lineWidth);
         }
         openGl << serie->useOpenGL();
         serie->setUseOpenGL(false);
     }
+
     // do the painting!!
     m_chart->scene()->render(&painter, QRectF(0, 0, m_scaling * w, m_scaling * h), m_chart->rect());
 
@@ -895,7 +946,7 @@ void ChartView::ExportPNG()
 
     // remove transparent border of resulting image
 
-    if (qApp->instance()->property("cropedChart").toBool() == true) {
+    if (m_currentChartConfig["cropImage"].toBool() == true) {
 #pragma message("stupid things")
         /* dont unterstand that in particular, but it works somehow, and it is not to slow */
 
@@ -913,7 +964,7 @@ void ChartView::ExportPNG()
             qobject_cast<QScatterSeries*>(serie)->setBorderColor(colors.takeFirst());
             qobject_cast<QScatterSeries*>(serie)->setMarkerSize(size.takeFirst());
         } else if (qobject_cast<LineSeries*>(serie)) {
-            qobject_cast<LineSeries*>(serie)->setSize(width.takeFirst());
+            qobject_cast<LineSeries*>(serie)->setLineWidth(width.takeFirst());
         }
         serie->setUseOpenGL(openGl.takeFirst());
     }

@@ -150,11 +150,28 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
     align->addAction(bottom);
     m_alignment->setMenu(align);
 
-    connect(align, &QMenu::triggered, [this](QAction* action) {
+    connect(align, &QMenu::triggered, align, [this](QAction* action) {
         // m_chartconfig.align = Qt::Alignment(action->data().toInt());
         m_chart_config["Alignment"] = action->data().toInt();
         emit ConfigChanged(ChartConfigJson());
     });
+
+    QGroupBox* exportImage = new QGroupBox(tr("Export to Image - Settings"));
+    QGridLayout* exportLayout = new QGridLayout;
+
+    m_cropImage = new QCheckBox(tr("Crop Image"));
+    connect(m_cropImage, &QCheckBox::stateChanged, this, &ChartConfigDialog::Changed);
+
+    m_transparentImage = new QCheckBox(tr("Transparent"));
+    connect(m_transparentImage, &QCheckBox::stateChanged, this, &ChartConfigDialog::Changed);
+
+    emphasizeAxis = new QCheckBox(tr("Emphasize Axis"));
+    connect(emphasizeAxis, &QCheckBox::stateChanged, this, &ChartConfigDialog::Changed);
+
+    noGrid = new QCheckBox(tr("No Grid"));
+    connect(noGrid, &QCheckBox::stateChanged, this, &ChartConfigDialog::Changed);
+
+    exportImage->setLayout(exportLayout);
 
     QHBoxLayout* actions = new QHBoxLayout;
 
@@ -168,46 +185,50 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
 
     m_x_size = new QSpinBox;
     m_x_size->setRange(0, 1e6);
-    m_x_size->setValue(qApp->instance()->property("xSize").toInt());
+    connect(m_x_size, &QSpinBox::valueChanged, this, &ChartConfigDialog::Changed);
 
     m_y_size = new QSpinBox;
     m_y_size->setRange(0, 1e6);
-    m_y_size->setValue(qApp->instance()->property("ySize").toInt());
+    connect(m_y_size, &QSpinBox::valueChanged, this, &ChartConfigDialog::Changed);
 
     m_scaling = new QSpinBox;
     m_scaling->setRange(0, 1e6);
-    m_scaling->setValue(qApp->instance()->property("chartScaling").toInt());
+    connect(m_scaling, &QSpinBox::valueChanged, this, &ChartConfigDialog::Changed);
 
     m_markerSize = new QDoubleSpinBox;
     m_markerSize->setRange(0, 30);
-    m_markerSize->setValue(qApp->instance()->property("markerSize").toDouble());
+    connect(m_markerSize, &QDoubleSpinBox::valueChanged, this, &ChartConfigDialog::Changed);
 
     m_lineWidth = new QDoubleSpinBox;
     m_lineWidth->setRange(0, 30);
-    m_lineWidth->setValue(qApp->instance()->property("lineWidth").toDouble());
+    connect(m_lineWidth, &QDoubleSpinBox::valueChanged, this, &ChartConfigDialog::Changed);
 
-    actions = new QHBoxLayout;
-    actions->addWidget(new QLabel(tr("X Size:")));
-    actions->addWidget(m_x_size);
+    exportLayout->addWidget(m_cropImage, 0, 0, 1, 2);
+    exportLayout->addWidget(m_transparentImage, 0, 2, 1, 2);
+    exportLayout->addWidget(emphasizeAxis, 0, 4, 1, 2);
+    exportLayout->addWidget(noGrid, 0, 6, 1, 2);
 
-    actions->addWidget(new QLabel(tr("Y Size:")));
-    actions->addWidget(m_y_size);
+    exportLayout->addWidget(new QLabel(tr("X Size:")), 1, 0);
+    exportLayout->addWidget(m_x_size, 1, 1);
 
-    actions->addWidget(new QLabel(tr("Scaling:")));
-    actions->addWidget(m_scaling);
+    exportLayout->addWidget(new QLabel(tr("Y Size:")), 1, 2);
+    exportLayout->addWidget(m_y_size, 1, 3);
 
-    actions->addWidget(new QLabel(tr("Marker Size:")));
-    actions->addWidget(m_markerSize);
+    exportLayout->addWidget(new QLabel(tr("Scaling:")), 1, 4);
+    exportLayout->addWidget(m_scaling, 1, 5);
 
-    actions->addWidget(new QLabel(tr("Line Width:")));
-    actions->addWidget(m_lineWidth);
+    exportLayout->addWidget(new QLabel(tr("Marker Size:")), 1, 6);
+    exportLayout->addWidget(m_markerSize, 1, 7);
 
-    layout->addLayout(actions, 5, 0, 1, 3);
+    exportLayout->addWidget(new QLabel(tr("Line Width:")), 1, 8);
+    exportLayout->addWidget(m_lineWidth, 1, 9);
 
-    layout->addWidget(m_resetFontConfig, 6, 0);
-    layout->addWidget(m_theme, 6, 1);
+    layout->addWidget(exportImage, 6, 0, 1, 3);
 
-    layout->addWidget(m_buttons, 6, 2, 1, 1);
+    layout->addWidget(m_resetFontConfig, 7, 0);
+    layout->addWidget(m_theme, 7, 1);
+
+    layout->addWidget(m_buttons, 7, 2, 1, 1);
     setLayout(layout);
     setWindowTitle("Configure charts ...");
 }
@@ -219,7 +240,6 @@ ChartConfigDialog::~ChartConfigDialog()
 void ChartConfigDialog::setChartConfig(const QJsonObject& chartconfig)
 {
     const QSignalBlocker blocker(this);
-    QJsonObject axis = chartconfig["xAxis"].toObject();
 
     m_x_config->setConfig(chartconfig["xAxis"].toObject());
     m_y_config->setConfig(chartconfig["yAxis"].toObject());
@@ -238,13 +258,10 @@ void ChartConfigDialog::setChartConfig(const QJsonObject& chartconfig)
     m_lineWidth->setValue(chartconfig["lineWidth"].toDouble());
     m_markerSize->setValue(chartconfig["markerSize"].toDouble());
     m_show_axis->setChecked(chartconfig["showAxis"].toDouble());
-
-    m_x_size->setValue(chartconfig["xSize"].toInt());
-    m_y_size->setValue(chartconfig["ySize"].toInt());
-
-    m_scaling->setValue(chartconfig["Scaling"].toInt());
-    m_markerSize->setValue(chartconfig["markerSize"].toDouble());
-    m_lineWidth->setValue(chartconfig["lineWidth"].toDouble());
+    m_cropImage->setChecked(chartconfig["cropImage"].toBool());
+    m_transparentImage->setChecked(chartconfig["transparentImage"].toBool());
+    emphasizeAxis->setChecked(chartconfig["emphasizeAxis"].toBool());
+    noGrid->setChecked(chartconfig["noGrid"].toBool());
 
     m_chart_config = chartconfig;
 }
@@ -253,9 +270,7 @@ void ChartConfigDialog::Changed()
 {
     m_chart_config["Title"] = m_title->text();
     m_chart_config["xAxis"] = m_x_config->getConfig();
-    ;
     m_chart_config["yAxis"] = m_y_config->getConfig();
-    ;
     m_chart_config["Legend"] = m_legend->isChecked();
     m_chart_config["ScalingLocked"] = m_lock_scaling->isChecked();
     m_chart_config["Annotation"] = m_annotation->isChecked();
@@ -265,6 +280,10 @@ void ChartConfigDialog::Changed()
     m_chart_config["lineWidth"] = m_lineWidth->value();
     m_chart_config["markerSize"] = m_markerSize->value();
     m_chart_config["Theme"] = m_theme->currentIndex();
+    m_chart_config["cropImage"] = m_cropImage->isChecked();
+    m_chart_config["transparentImage"] = m_transparentImage->isChecked();
+    m_chart_config["emphasizeAxis"] = emphasizeAxis->isChecked();
+    m_chart_config["noGrid"] = noGrid->isChecked();
 
     emit ConfigChanged(ChartConfigJson());
 }

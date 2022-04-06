@@ -191,7 +191,7 @@ public:
     QPointF currentMousePosition() const { return m_chart_private->currentMousePosition(); }
 
     QJsonObject CurrentChartConfig() const { return m_currentChartConfig; }
-    void setChartConfig(const QJsonObject& config);
+    void UpdateChartConfig(const QJsonObject& config, bool force = false);
 
 public slots:
     void setSelectBox(const QPointF& topleft, const QPointF& bottomright) { m_chart_private->setSelectBox(topleft, bottomright); }
@@ -223,7 +223,7 @@ private:
     QAction* m_lock_action;
     ChartViewPrivate* m_chart_private;
     QPointer<QChart> m_chart;
-    QPushButton* m_config;
+    QPushButton *m_config, *m_action_button, *m_ignore;
     void setUi();
     bool has_legend, connected, m_hasAxis = false, m_manual_zoom = false;
     QString m_x_axis, m_y_axis;
@@ -239,22 +239,28 @@ private:
     QAction *m_configure_series, *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
     QMenu *m_select_strategy, *m_zoom_strategy;
 
-    QJsonObject m_currentChartConfig;
+    QJsonObject m_currentChartConfig, m_pendingChartConfig, m_lastChartConfig;
 
     QString m_name, m_last_filename;
     QPointer<QValueAxis> m_XAxis, m_YAxis;
 
     void ScaleAxis(QPointer<QValueAxis> axis, qreal& min, qreal& max);
     QGridLayout* mCentralLayout;
-
-    int m_x_size = 0, m_y_size = 0, m_scaling = 0;
-    qreal m_lineWidth = 4, m_markerSize = 8;
+    /*
+     * -1 button activated to revert
+     * +1 button activated to apply
+     */
+    int m_apply_action = 0;
+    int m_x_size = 600, m_y_size = 400, m_scaling = 2;
+    qreal m_lineWidth = 2, m_markerSize = 8;
 
     QString m_font;
     AutoScaleStrategy m_autoscalestrategy;
 
     void UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis);
     QJsonObject getAxisConfig(const QAbstractAxis* axis) const;
+    void setChartConfig(const QJsonObject& config);
+    void ApplyConfigAction();
 
 private slots:
     void PlotSettings();
