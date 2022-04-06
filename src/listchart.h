@@ -1,17 +1,17 @@
 /*
  * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2018 - 2019 Conrad Hübler <Conrad.Huebler@gmx.net>
- * 
+ * Copyright (C) 2018 - 2022 Conrad Hübler <Conrad.Huebler@gmx.net>
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -112,6 +112,23 @@ public:
     }
 
     inline void setAutoScaleStrategy(AutoScaleStrategy strategy) { m_chartview->setAutoScaleStrategy(strategy); }
+    inline QJsonObject CurrentChartConfig() const { return m_chartview->CurrentChartConfig(); }
+    inline QJsonObject CurrentFontConfig() const { return m_chartview->CurrentFontConfig(); };
+
+    inline void UpdateChartConfig(const QJsonObject& config, bool force = false)
+    {
+        m_chartview->UpdateChartConfig(config, force);
+    }
+
+    inline void setFontConfig(const QJsonObject& chartconfig)
+    {
+        m_chartview->setFontConfig(chartconfig);
+    }
+
+    inline void AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings)
+    {
+        m_chartview->AddExportSetting(name, description, settings);
+    }
 
 public slots:
     inline void formatAxis() { m_chartview->formatAxis(); }
@@ -137,6 +154,8 @@ private slots:
 signals:
     void itemDoubleClicked(QListWidgetItem* item);
     void LastDirChanged(const QString& dir);
+    void ConfigurationChanged();
+    void setUpFinished();
 
     //     void itemDoubleClicked(QListWidgetItem *item);
 };

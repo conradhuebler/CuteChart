@@ -188,6 +188,8 @@ inline QJsonObject MergeJsonObject(const QJsonObject& target, const QJsonObject&
 {
     QJsonObject result = target;
     for (const QString& key : inserted.keys()) {
+        if (!target.contains(key))
+            continue;
         if (inserted[key].toObject().keys().size())
             result[key] = MergeJsonObject(result[key].toObject(), inserted[key].toObject());
         else

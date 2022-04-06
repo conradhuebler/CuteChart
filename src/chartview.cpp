@@ -63,8 +63,8 @@ ChartView::ChartView()
     , m_pending(false)
     , m_lock_scaling(false)
 {
+    m_currentChartConfig = DefaultConfig;
     m_chart = new QChart();
-    // m_chart->setLocalizeNumbers(true);
     m_chart_private = new ChartViewPrivate(m_chart, this);
 
     connect(m_chart_private, SIGNAL(ZoomChanged()), this, SIGNAL(ZoomChanged()));
@@ -108,7 +108,6 @@ void ChartView::setUi()
     m_configure_series = new QAction(this);
     m_configure_series->setText(tr("Configure"));
     connect(m_configure_series, SIGNAL(triggered()), this, SLOT(Configure()));
-    //    menu->addAction(m_configure_series);
 
     QAction* plotsettings = new QAction(this);
     plotsettings->setText(tr("Plot Settings"));
@@ -149,6 +148,17 @@ void ChartView::setUi()
     connect(exportpng, SIGNAL(triggered()), this, SLOT(ExportPNG()));
     menu->addAction(exportpng);
 
+    m_exportMenu = new QMenu(tr("Export Style"));
+    menu->addMenu(m_exportMenu);
+
+    QAction* defaultAction = new QAction(tr("Default"));
+    defaultAction->setData(DefaultConfig);
+    m_exportMenu->addAction(defaultAction);
+
+    connect(m_exportMenu, &QMenu::triggered, m_exportMenu, [this](QAction* action) {
+        this->setFontConfig(action->data().toJsonObject());
+    });
+
     QAction* saveConfig = new QAction(this);
     saveConfig->setText(tr("Save Font Config (Json)"));
     connect(saveConfig, SIGNAL(triggered()), this, SLOT(SaveFontConfig()));
@@ -183,7 +193,7 @@ void ChartView::setUi()
     m_select_strategy->addAction(m_select_rectangular);
 
     menu->addMenu(m_select_strategy);
-    connect(m_select_strategy, &QMenu::triggered, [this](QAction* action) {
+    connect(m_select_strategy, &QMenu::triggered, m_select_strategy, [this](QAction* action) {
         SelectStrategy select = static_cast<SelectStrategy>(action->data().toInt());
         this->m_chart_private->setSelectStrategy(select);
         m_select_none->setChecked(select == SelectStrategy::S_None);
@@ -216,7 +226,7 @@ void ChartView::setUi()
     m_zoom_strategy->addAction(m_zoom_rectangular);
 
     menu->addMenu(m_zoom_strategy);
-    connect(m_zoom_strategy, &QMenu::triggered, [this](QAction* action) {
+    connect(m_zoom_strategy, &QMenu::triggered, m_zoom_strategy, [this](QAction* action) {
         ZoomStrategy select = static_cast<ZoomStrategy>(action->data().toInt());
         this->m_chart_private->setZoomStrategy(select);
         m_zoom_none->setChecked(select == ZoomStrategy::Z_None);
@@ -284,13 +294,28 @@ void ChartView::setUi()
         this->m_lock_scaling = false;
         this->m_lock_action->setChecked(false);
     });
-    /*
-        m_x_size = (qApp->instance()->property("xSize").toInt());
-        m_y_size = (qApp->instance()->property("ySize").toInt());
-        m_scaling = (qApp->instance()->property("chartScaling").toInt());
-        m_lineWidth = (qApp->instance()->property("chartScaling").toDouble());
-        m_markerSize = (qApp->instance()->property("markerSize").toDouble());
-        */
+}
+
+void ChartView::AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings)
+{
+    m_stored_exportsettings.insert(name, QPair<QString, QJsonObject>(description, settings));
+    m_exportMenu->clear();
+    QAction* defaultAction = new QAction(tr("Default"));
+    defaultAction->setData(DefaultConfig);
+    m_exportMenu->addAction(defaultAction);
+    QHash<QString, QPair<QString, QJsonObject>>::const_iterator i = m_stored_exportsettings.constBegin();
+    while (i != m_stored_exportsettings.constEnd()) {
+        QAction* action = new QAction(m_exportMenu);
+        action->setText(i.key());
+        action->setToolTip(i.value().first);
+        action->setData(i.value().second);
+        /*
+        connect(action, &QAction::triggered, this, [this, action]() {
+            this->setFontConfig(action->data().toJsonObject());
+        });*/
+        ++i;
+        m_exportMenu->addAction(action);
+    }
 }
 
 void ChartView::Configure()
@@ -405,6 +430,7 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
         if (connect(this, SIGNAL(AxisChanged()), this, SLOT(forceformatAxis())))
             connected = true;
     forceformatAxis();
+    emit setUpFinished();
 }
 
 void ChartView::ClearChart()
@@ -618,7 +644,12 @@ void ChartView::UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
 
 void ChartView::UpdateChartConfig(const QJsonObject& config, bool force)
 {
-    QJsonObject tmp = ChartTools::MergeJsonObject(m_currentChartConfig, config);
+    if (m_prevent_notification) {
+        m_prevent_notification = false;
+        return;
+    }
+
+    QJsonObject tmp = ChartTools::MergeJsonObject(getChartConfig(), config);
     if (force) {
         setChartConfig(tmp);
         m_apply_action = -1;
@@ -713,6 +744,7 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
     setFontConfig(config);
     m_apply_action = 1;
     m_action_button->setHidden(false);
+    m_prevent_notification = true;
 }
 
 void ChartView::ApplyConfigAction()
@@ -720,10 +752,11 @@ void ChartView::ApplyConfigAction()
     if (m_apply_action == -1) {
         setChartConfig(m_lastChartConfig);
     } else if (m_apply_action == 1) {
-        setChartConfig(m_pendingChartConfig);
+        setChartConfig(ChartTools::MergeJsonObject(getChartConfig(), m_pendingChartConfig));
     }
     m_action_button->setHidden(true);
     m_ignore->setHidden(true);
+    m_prevent_notification = false;
 }
 
 void ChartView::setFontConfig(const QJsonObject& chartconfig)
@@ -785,7 +818,7 @@ QJsonObject ChartView::getAxisConfig(const QAbstractAxis* axis) const
 
 QJsonObject ChartView::getChartConfig() const
 {
-    QJsonObject chartconfig;
+    QJsonObject chartconfig = m_currentChartConfig;
 
     if (m_hasAxis) {
         chartconfig["xAxis"] = getAxisConfig(m_XAxis);
@@ -805,6 +838,23 @@ QJsonObject ChartView::getChartConfig() const
     chartconfig["TitleFont"] = m_chart->titleFont().toString();
 
     return chartconfig;
+}
+
+QJsonObject ChartView::CurrentFontConfig() const
+{
+    QJsonObject font;
+    font["KeyFont"] = m_chart->legend()->font().toString();
+    font["TitleFont"] = m_chart->titleFont().toString();
+    QJsonObject tmp = getAxisConfig(m_XAxis);
+    QJsonObject axis;
+    axis["TitleFont"] = tmp["TitleFont"].toString();
+    axis["TicksFont"] = tmp["TicksFont"].toString();
+    font["xAxis"] = axis;
+    tmp = getAxisConfig(m_YAxis);
+    axis["TitleFont"] = tmp["TitleFont"].toString();
+    axis["TicksFont"] = tmp["TicksFont"].toString();
+    font["yAxis"] = axis;
+    return font;
 }
 
 QString ChartView::Color2RGB(const QColor& color) const
@@ -862,6 +912,7 @@ void ChartView::ExportPNG()
     bool yGrid = m_YAxis->isGridLineVisible();
 
     // hide grid lines
+    qDebug() << m_currentChartConfig;
     if (m_currentChartConfig["noGrid"].toBool() == true) {
         m_XAxis->setGridLineVisible(false);
         m_YAxis->setGridLineVisible(false);
@@ -939,7 +990,7 @@ void ChartView::ExportPNG()
                 b = y;
             }
         }
-        return tmp.copy(l + 1, t + 1, r + 1, b + 1);
+        return tmp.copy(l + 1, t + 1, r + 1, b);
     };
 
     QPixmap pixmap;
@@ -998,7 +1049,7 @@ void ChartView::ExportPNG()
     QApplication::restoreOverrideCursor();
 }
 
-void ChartView::ApplyConfigurationChange(const QString& str)
+void ChartView::ApplyConfigurationChange()
 {
     /*
     if (str == m_name)
@@ -1065,7 +1116,7 @@ void ChartView::SaveFontConfig()
         // We're going to streaming text to the file
         QTextStream stream(&file);
 
-        stream << QJsonDocument(getChartConfig()).toJson(QJsonDocument::Indented);
+        stream << QJsonDocument(CurrentFontConfig()).toJson(QJsonDocument::Indented);
 
         file.close();
         qDebug() << "Writing finished";
@@ -1084,11 +1135,10 @@ void ChartView::LoadFontConfig()
     if (!file.open(QIODevice::ReadOnly))
         return;
     auto content = file.readAll();
-    qDebug() << content;
     QJsonDocument doc = QJsonDocument::fromJson(content);
     m_currentChartConfig = doc.object();
-    qDebug() << doc.object();
     setFontConfig(doc.object());
+    AddExportSetting(str, "from file", m_currentChartConfig);
 }
 
 #include "chartview.moc"

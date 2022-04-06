@@ -45,6 +45,23 @@ class PeakCallOut;
 
 struct ChartConfig;
 
+const QJsonObject DefaultConfig{
+    { "Title", "" },
+    { "Legend", false },
+    { "ScalingLocked", false },
+    { "Annotation", false },
+    { "xSize", 600 },
+    { "ySize", 400 },
+    { "Scaling", 2 },
+    { "lineWidth", 4 },
+    { "markerSize", 8 },
+    { "Theme", 0 },
+    { "cropImage", true },
+    { "transparentImage", true },
+    { "emphasizeAxis", true },
+    { "noGrid", true }
+};
+
 class ChartView : public QScrollArea {
     Q_OBJECT
 
@@ -191,8 +208,11 @@ public:
     QPointF currentMousePosition() const { return m_chart_private->currentMousePosition(); }
 
     QJsonObject CurrentChartConfig() const { return m_currentChartConfig; }
+    QJsonObject CurrentFontConfig() const;
+
     void UpdateChartConfig(const QJsonObject& config, bool force = false);
 
+    void AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings);
 public slots:
     void setSelectBox(const QPointF& topleft, const QPointF& bottomright) { m_chart_private->setSelectBox(topleft, bottomright); }
 
@@ -212,9 +232,10 @@ public slots:
     }
     void setTitle(const QString& str);
 
-    void ApplyConfigurationChange(const QString& str = "noname");
+    void ApplyConfigurationChange();
 
     void ZoomRect(const QPointF& point1, const QPointF& point2);
+    void setFontConfig(const QJsonObject& chartconfig);
 
 private:
     QStackedWidget* m_centralWidget;
@@ -231,7 +252,7 @@ private:
     QString Color2RGB(const QColor& color) const;
     void WriteTable(const QString& str);
     ChartConfigDialog* m_chartconfigdialog;
-    bool m_pending, m_lock_scaling, m_modal = true;
+    bool m_pending, m_lock_scaling, m_modal = true, m_prevent_notification = false;
     qreal m_ymax, m_ymin, m_xmin, m_xmax;
     QVector<QPointer<QAbstractSeries>> m_series;
     QVector<QPointer<PeakCallOut>> m_peak_anno;
@@ -262,18 +283,20 @@ private:
     void setChartConfig(const QJsonObject& config);
     void ApplyConfigAction();
 
+    QHash<QString, QPair<QString, QJsonObject>> m_stored_exportsettings;
+    QMenu* m_exportMenu;
 private slots:
     void PlotSettings();
     void SaveFontConfig();
     void LoadFontConfig();
     void ExportPNG();
-    void setFontConfig(const QJsonObject& chartconfig);
 
     void forceformatAxis();
     void ResetFontConfig();
     void Configure();
 
 signals:
+    void setUpFinished();
     void AxisChanged();
     void ChartCleared();
     void ConfigurationChanged();
