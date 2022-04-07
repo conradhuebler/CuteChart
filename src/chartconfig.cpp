@@ -55,10 +55,18 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
     m_title = new QLineEdit;
     connect(m_title, &QLineEdit::textChanged, this, &ChartConfigDialog::Changed);
     m_title->setMinimumWidth(400);
-    m_titlefont = new QPushButton(tr("Font"));
+
+    m_titlefont = new QPushButton(tr("Title Font"));
     connect(m_titlefont, &QPushButton::clicked, this, &ChartConfigDialog::setTitleFont);
-    m_titlefont->setMaximumSize(60, 30);
     m_titlefont->setStyleSheet("background-color: #F3ECE0;");
+
+    m_ticksfont = new QPushButton(tr("Axis Ticks"));
+    connect(m_ticksfont, &QPushButton::clicked, this, &ChartConfigDialog::setAxisTicksFont);
+    m_ticksfont->setStyleSheet("background-color: #F3ECE0;");
+
+    m_axistitlefont = new QPushButton(tr("Axis Title"));
+    connect(m_axistitlefont, &QPushButton::clicked, this, &ChartConfigDialog::setAxisTitleFont);
+    m_axistitlefont->setStyleSheet("background-color: #F3ECE0;");
 
     m_scaleaxis = new QPushButton(tr("Reset Scaling"));
     connect(m_scaleaxis, SIGNAL(clicked()), this, SIGNAL(ScaleAxis()));
@@ -110,16 +118,16 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
     layout->addWidget(new QLabel(tr("<h4>Chart Title</h4>")), 0, 0);
     layout->addWidget(m_title, 0, 1);
     layout->addWidget(m_titlefont, 0, 2);
+    layout->addWidget(m_ticksfont, 0, 3);
+    layout->addWidget(m_axistitlefont, 0, 4);
 
     m_x_config = new AxisConfig(tr("X Axis"));
-    layout->addWidget(m_x_config, 1, 0, 1, 3);
+    layout->addWidget(m_x_config, 1, 0, 1, 5);
     connect(m_x_config, &AxisConfig::ConfigChanged, this, &ChartConfigDialog::Changed);
     m_y_config = new AxisConfig(tr("Y Axis"));
-    layout->addWidget(m_y_config, 2, 0, 1, 3);
+    layout->addWidget(m_y_config, 2, 0, 1, 5);
     connect(m_y_config, &AxisConfig::ConfigChanged, this, &ChartConfigDialog::Changed);
 
-    layout->addWidget(m_scaleaxis, 3, 1);
-    layout->addWidget(m_lock_scaling, 3, 2);
     m_keys = new QPushButton(tr("Legend Font"));
     connect(m_keys, &QPushButton::clicked, this, &ChartConfigDialog::setKeysFont);
     m_keys->setMaximumSize(90, 30);
@@ -175,13 +183,15 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
 
     QHBoxLayout* actions = new QHBoxLayout;
 
-    actions->addStretch(300);
     actions->addWidget(m_keys);
     actions->addWidget(m_alignment);
     actions->addWidget(m_legend);
     actions->addWidget(m_annotation);
-    actions->addWidget(m_show_axis);
-    layout->addLayout(actions, 4, 0, 1, 3);
+    actions->addWidget(m_lock_scaling);
+    actions->addWidget(m_scaleaxis);
+
+    // actions->addWidget(m_show_axis);
+    layout->addLayout(actions, 4, 0, 1, 5);
 
     m_x_size = new QSpinBox;
     m_x_size->setRange(0, 1e6);
@@ -223,12 +233,12 @@ ChartConfigDialog::ChartConfigDialog(QWidget* widget)
     exportLayout->addWidget(new QLabel(tr("Line Width:")), 1, 8);
     exportLayout->addWidget(m_lineWidth, 1, 9);
 
-    layout->addWidget(exportImage, 6, 0, 1, 3);
+    layout->addWidget(exportImage, 6, 0, 1, 5);
 
     layout->addWidget(m_resetFontConfig, 7, 0);
     layout->addWidget(m_theme, 7, 1);
 
-    layout->addWidget(m_buttons, 7, 2, 1, 1);
+    layout->addWidget(m_buttons, 7, 2, 1, 3);
     setLayout(layout);
     setWindowTitle("Configure charts ...");
 }
@@ -313,4 +323,45 @@ void ChartConfigDialog::setTitleFont()
         emit ConfigChanged(ChartConfigJson());
     }
 }
+
+void ChartConfigDialog::setAxisTicksFont()
+{
+    bool ok;
+    QFont tmp;
+    tmp.fromString(m_chart_config["TitleFont"].toString());
+    QFont font = QFontDialog::getFont(&ok, tmp, this);
+    std::cout << font.toString().toStdString() << std::endl;
+    if (ok) {
+        QJsonObject axis = m_chart_config["xAxis"].toObject();
+        axis["TicksFont"] = font.toString();
+        m_chart_config["xAxis"] = axis;
+
+        axis = m_chart_config["yAxis"].toObject();
+        axis["TicksFont"] = font.toString();
+        m_chart_config["yAxis"] = axis;
+
+        emit ConfigChanged(ChartConfigJson());
+    }
+}
+
+void ChartConfigDialog::setAxisTitleFont()
+{
+    bool ok;
+    QFont tmp;
+    tmp.fromString(m_chart_config["TitleFont"].toString());
+    QFont font = QFontDialog::getFont(&ok, tmp, this);
+    std::cout << font.toString().toStdString() << std::endl;
+    if (ok) {
+        QJsonObject axis = m_chart_config["xAxis"].toObject();
+        axis["TitleFont"] = font.toString();
+        m_chart_config["xAxis"] = axis;
+
+        axis = m_chart_config["yAxis"].toObject();
+        axis["TitleFont"] = font.toString();
+        m_chart_config["yAxis"] = axis;
+
+        emit ConfigChanged(ChartConfigJson());
+    }
+}
+
 #include "chartconfig.moc"

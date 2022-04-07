@@ -211,6 +211,7 @@ public:
     QJsonObject CurrentFontConfig() const;
 
     void UpdateChartConfig(const QJsonObject& config, bool force = false);
+    void ForceChartConfig(const QJsonObject& config);
 
     void AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings);
 public slots:
@@ -306,6 +307,7 @@ signals:
     void EscapeSelectMode();
     void RightKey();
     void LeftKey();
+    void ExportSettingsFileAdded(const QString& name, const QString& description, const QJsonObject& data);
 
 protected:
     virtual void resizeEvent(QResizeEvent* event) override;

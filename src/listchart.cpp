@@ -39,6 +39,7 @@ ListChart::ListChart()
     connect(m_chartview, &ChartView::LastDirChanged, this, &ListChart::LastDirChanged);
     connect(m_chartview, &ChartView::ConfigurationChanged, this, &ListChart::ConfigurationChanged);
     connect(m_chartview, &ChartView::setUpFinished, this, &ListChart::setUpFinished);
+    connect(m_chartview, &ChartView::ExportSettingsFileAdded, this, &ListChart::ExportSettingsFileAdded);
 
     m_chartview->setYAxis("Y");
     m_chartview->setXAxis("X");

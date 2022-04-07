@@ -46,7 +46,7 @@ public:
 
 private:
     AxisConfig *m_x_config, *m_y_config;
-    QPushButton *m_scaleaxis, *m_keys, *m_alignment, *m_titlefont, *m_resetFontConfig;
+    QPushButton *m_scaleaxis, *m_keys, *m_alignment, *m_titlefont, *m_resetFontConfig, *m_ticksfont, *m_axistitlefont;
     QLineEdit* m_title;
     QDoubleSpinBox *m_markerSize, *m_lineWidth;
     QSpinBox *m_scaling, *m_x_size, *m_y_size;
@@ -55,10 +55,13 @@ private:
     QJsonObject m_chart_config;
 
     QStringList m_number_format = { "%2.2f", "%2.5f" };
+
 private slots:
     void Changed();
     void setKeysFont();
     void setTitleFont();
+    void setAxisTicksFont();
+    void setAxisTitleFont();
 
 signals:
     void ConfigChanged(const QJsonObject& chartconfig);

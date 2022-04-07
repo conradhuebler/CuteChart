@@ -277,7 +277,7 @@ void ChartView::setUi()
     m_chartconfigdialog = new ChartConfigDialog(this);
 
     connect(m_chartconfigdialog, &ChartConfigDialog::ConfigChanged, this, [this](const QJsonObject& config) {
-        this->UpdateChartConfig(config, true);
+        this->ForceChartConfig(config);
         emit ConfigurationChanged();
     });
     connect(m_chartconfigdialog, SIGNAL(ScaleAxis()), this, SLOT(forceformatAxis()));
@@ -296,6 +296,8 @@ void ChartView::setUi()
 
 void ChartView::AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings)
 {
+    if (m_stored_exportsettings.contains(name))
+        return;
     m_stored_exportsettings.insert(name, QPair<QString, QJsonObject>(description, settings));
     m_exportMenu->clear();
     QAction* defaultAction = new QAction(tr("Default"));
@@ -307,10 +309,6 @@ void ChartView::AddExportSetting(const QString& name, const QString& description
         action->setText(i.key());
         action->setToolTip(i.value().first);
         action->setData(i.value().second);
-        /*
-        connect(action, &QAction::triggered, this, [this, action]() {
-            this->setFontConfig(action->data().toJsonObject());
-        });*/
         ++i;
         m_exportMenu->addAction(action);
     }
@@ -673,6 +671,18 @@ void ChartView::UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
     }
 }
 
+void ChartView::ForceChartConfig(const QJsonObject& config)
+{
+    QJsonObject tmp = ChartTools::MergeJsonObject(getChartConfig(), config);
+
+    setChartConfig(tmp);
+    m_apply_action = -1;
+    m_action_button->setText(tr("Revert"));
+    m_action_button->setStyleSheet("QPushButton {background-color: #BF593E; color: black;}");
+    m_action_button->setHidden(false);
+    m_ignore->setHidden(false);
+}
+
 void ChartView::UpdateChartConfig(const QJsonObject& config, bool force)
 {
     if (m_prevent_notification) {
@@ -776,6 +786,9 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
     m_apply_action = 1;
     m_action_button->setHidden(false);
     m_prevent_notification = true;
+
+    QSignalBlocker block(m_chartconfigdialog);
+    m_chartconfigdialog->setChartConfig(m_currentChartConfig);
 }
 
 void ChartView::ApplyConfigAction()
@@ -1124,6 +1137,7 @@ void ChartView::LoadFontConfig()
     setFontConfig(doc.object());
     QFileInfo info(str);
     AddExportSetting(info.baseName(), str, m_currentChartConfig);
+    emit ExportSettingsFileAdded(info.baseName(), str, m_currentChartConfig);
 }
 
 #include "chartview.moc"

@@ -17,6 +17,8 @@
  *
  */
 
+#include <QtCore/QtMath>
+
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QDoubleSpinBox>
@@ -175,7 +177,7 @@ void AxisConfig::setConfig(const QJsonObject& config)
     m_dynamic->setChecked(config["TickType"].toInt() == 1);
     m_tickAnchor->setValue(config["TickAnchor"].toDouble());
     if (config["TickType"].toInt() == 1)
-        m_interval->setValue(exp10(int(log10(m_max->value() - m_min->value())) - 1));
+        m_interval->setValue(qPow(10, int(log10(m_max->value() - m_min->value())) - 1));
     else
         m_interval->setValue(config["TickInterval"].toDouble());
     m_major_tick_count->setValue(config["TickCount"].toDouble());

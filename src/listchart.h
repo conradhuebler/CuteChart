@@ -138,7 +138,6 @@ public slots:
 private:
     QListWidget *m_list, *m_names_list;
     ChartView* m_chartview;
-    //QChart* m_chart;
     QMultiHash<int, QAbstractSeries*> m_series;
     QHash<int, bool> m_hidden;
     QString m_name;
@@ -155,6 +154,7 @@ signals:
     void LastDirChanged(const QString& dir);
     void ConfigurationChanged();
     void setUpFinished();
+    void ExportSettingsFileAdded(const QString& name, const QString& description, const QJsonObject& data);
 
     //     void itemDoubleClicked(QListWidgetItem *item);
 };
