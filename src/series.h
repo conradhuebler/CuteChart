@@ -40,6 +40,14 @@ public:
     LineSeries();
     virtual inline ~LineSeries() override {}
 
+    inline bool ShowInLegend() const { return m_show_in_legend; }
+
+    inline void setShowInLegend(bool legend)
+    {
+        m_show_in_legend = legend;
+        emit legendChanged(legend);
+    }
+
 public slots:
     virtual void setColor(const QColor& color) override
     {
@@ -88,9 +96,12 @@ private:
         pen.setColor(m_color);
         setPen(pen);
     }
-    bool m_dashdot;
+    bool m_dashdot, m_show_in_legend = false;
     double m_size;
     QColor m_color;
+
+signals:
+    void legendChanged(bool legend);
 };
 
 class ScatterSeries : public QScatterSeries {
@@ -100,13 +111,24 @@ public:
     ScatterSeries();
     virtual inline ~ScatterSeries() override {}
 
+    inline bool ShowInLegend() const { return m_show_in_legend; }
+    inline void setShowInLegend(bool legend)
+    {
+        m_show_in_legend = legend;
+        emit legendChanged(legend);
+    }
+
 public slots:
     virtual void setColor(const QColor& color) override;
     void ShowLine(int state);
 
+private:
+    bool m_show_in_legend = false;
+
 signals:
     void NameChanged(const QString& str);
     void visibleChanged(int state);
+    void legendChanged(bool legend);
 };
 
 class BoxPlotSeries : public QBoxPlotSeries {

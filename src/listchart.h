@@ -134,7 +134,6 @@ public slots:
     inline void formatAxis() { m_chartview->formatAxis(); }
     void setColor(int index, const QColor& color);
     void HideSeries(int index);
-    void ApplyConfigurationChange();
 
 private:
     QListWidget *m_list, *m_names_list;

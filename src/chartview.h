@@ -232,8 +232,6 @@ public slots:
     }
     void setTitle(const QString& str);
 
-    void ApplyConfigurationChange();
-
     void ZoomRect(const QPointF& point1, const QPointF& point2);
     void setFontConfig(const QJsonObject& chartconfig);
 
@@ -292,7 +290,6 @@ private slots:
     void ExportPNG();
 
     void forceformatAxis();
-    void ResetFontConfig();
     void Configure();
 
 signals:

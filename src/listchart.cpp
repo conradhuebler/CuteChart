@@ -187,7 +187,6 @@ void ListChart::RenameSeries()
 {
     QListWidgetItem* item = m_list->item(m_list->currentRow());
     QAbstractSeries* series = item->data(Qt::UserRole + 1).value<QAbstractSeries*>();
-    //if()
     if (item->flags().testFlag(Qt::ItemIsEditable) == false) {
         item->setFlags(item->flags() | Qt::ItemIsEditable);
         m_list->editItem(item);
@@ -214,11 +213,6 @@ void ListChart::ChangeColor()
     if (qobject_cast<QScatterSeries*>(series)) {
         qobject_cast<QScatterSeries*>(series)->setBorderColor(color);
     }
-}
-
-void ListChart::ApplyConfigurationChange()
-{
-    m_chartview->ApplyConfigurationChange();
 }
 
 #include "listchart.moc"

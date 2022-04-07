@@ -283,8 +283,6 @@ void ChartView::setUi()
     connect(m_chartconfigdialog, SIGNAL(ScaleAxis()), this, SLOT(forceformatAxis()));
     connect(m_chartconfigdialog, SIGNAL(ResetFontConfig()), this, SLOT(ResetFontConfig()));
 
-    ApplyConfigurationChange();
-
     connect(m_chart_private, &ChartViewPrivate::LockZoom, this, [this]() {
         this->m_lock_scaling = true;
         this->m_lock_action->setChecked(true);
@@ -399,7 +397,6 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             m_YAxis->setLabelFormat("%2.2f");
 
             m_hasAxis = true;
-            // ReadSettings();
         } else {
             series->attachAxis(m_XAxis);
             series->attachAxis(m_YAxis);
@@ -408,23 +405,58 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
     }
     connect(series, &QAbstractSeries::nameChanged, series, [this, series]() {
         if (series) {
-            //qDebug() << series->name();
-#pragma message("this can be compressed due to logic gatters")
-            bool show = series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ") || series->name() == "!NONE!";
-            this->m_chart->legend()->markers(series).first()->setVisible(!show);
+            bool show = false;
+            QPointer<LineSeries> line = qobject_cast<LineSeries*>(series);
+            QPointer<ScatterSeries> scatter = qobject_cast<ScatterSeries*>(series);
+            if (line) {
+                show = line->ShowInLegend();
+            } else if (scatter)
+
+            {
+                show = scatter->ShowInLegend();
+            }
+            this->m_chart->legend()->markers(series).first()->setVisible(show);
         }
     });
     connect(series, &QAbstractSeries::visibleChanged, series, [this, series]() {
         if (series) {
-            //qDebug() << series->name();
-#pragma message("this can be compressed due to logic gatters")
-            bool show = series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ") || series->name() == "!NONE!";
+            bool show = false;
+            QPointer<LineSeries> line = qobject_cast<LineSeries*>(series);
+            QPointer<ScatterSeries> scatter = qobject_cast<ScatterSeries*>(series);
+            if (line) {
+                show = line->ShowInLegend();
+            } else if (scatter)
+
+            {
+                show = scatter->ShowInLegend();
+            }
             if (series->isVisible())
                 this->m_chart->legend()->markers(series).first()->setVisible(!show);
         }
     });
-    //qDebug() << series->name();
-    m_chart->legend()->markers(series).first()->setVisible(!(series->name().isEmpty() || series->name().isNull() || series->name().simplified() == QString(" ") || series->name() == "!NONE!"));
+    bool show = false;
+    QPointer<LineSeries> line = qobject_cast<LineSeries*>(series);
+    QPointer<ScatterSeries> scatter = qobject_cast<ScatterSeries*>(series);
+    if (line) {
+        connect(line, &LineSeries::legendChanged, series, [this, series](bool legend) {
+            bool vis = m_chart->legend()->isVisible();
+            m_chart->legend()->setVisible(false);
+            m_chart->legend()->markers(series).first()->setVisible(legend);
+            m_chart->legend()->setVisible(vis);
+        });
+
+        show = line->ShowInLegend();
+    } else if (scatter) {
+        connect(scatter, &ScatterSeries::legendChanged, series, [this, series](bool legend) {
+            bool vis = m_chart->legend()->isVisible();
+            m_chart->legend()->setVisible(false);
+            m_chart->legend()->markers(series).first()->setVisible(legend);
+            m_chart->legend()->setVisible(vis);
+        });
+
+        show = scatter->ShowInLegend();
+    }
+    m_chart->legend()->markers(series).first()->setVisible(show);
     connect(series, SIGNAL(visibleChanged()), this, SLOT(forceformatAxis()));
     if (!connected)
         if (connect(this, SIGNAL(AxisChanged()), this, SLOT(forceformatAxis())))
@@ -629,7 +661,6 @@ void ChartView::UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
     axis->setMin(config["Min"].toDouble());
     axis->setMax(config["Max"].toDouble());
     axis->setVisible(config["showAxis"].toBool());
-
     QPointer<QValueAxis> valueaxis = qobject_cast<QValueAxis*>(axis);
     if (valueaxis) {
         valueaxis->setTickType(config["TickType"].toInt() == 0 ? QValueAxis::TicksDynamic : QValueAxis::TicksFixed);
@@ -912,7 +943,6 @@ void ChartView::ExportPNG()
     bool yGrid = m_YAxis->isGridLineVisible();
 
     // hide grid lines
-    qDebug() << m_currentChartConfig;
     if (m_currentChartConfig["noGrid"].toBool() == true) {
         m_XAxis->setGridLineVisible(false);
         m_YAxis->setGridLineVisible(false);
@@ -969,7 +999,8 @@ void ChartView::ExportPNG()
      * https://stackoverflow.com/questions/3720947/does-qt-have-a-way-to-find-bounding-box-of-an-image
      *
      */
-
+    // This part is kept of historical reasons ;-)
+    /*
     auto border = [](const QImage& tmp) -> QImage {
         int l = tmp.width(), r = 0, t = tmp.height(), b = 0;
         for (int y = 0; y < tmp.height(); ++y) {
@@ -990,19 +1021,23 @@ void ChartView::ExportPNG()
                 b = y;
             }
         }
-        return tmp.copy(l + 1, t + 1, r + 1, b);
+        return tmp.copy(l + 1, t + 1, r + 1, b + 1);
     };
-
+    */
     QPixmap pixmap;
 
     // remove transparent border of resulting image
 
     if (m_currentChartConfig["cropImage"].toBool() == true) {
-#pragma message("stupid things")
-        /* dont unterstand that in particular, but it works somehow, and it is not to slow */
 
-        QImage mirrored = border(border(image.mirrored(true, true)).mirrored(true, true).mirrored(true, true)).mirrored(true, true);
+        // As is this part of the code
+        /*
+        QImage mirrored = border(image);//border(border(image.mirrored(true, true)).mirrored(true, true).mirrored(true, true)).mirrored(true, true);
         pixmap = QPixmap::fromImage(border(mirrored));
+        */
+
+        QRect region = QRegion(QBitmap::fromImage(image.createMaskFromColor(0x00000000))).boundingRect();
+        pixmap = QPixmap::fromImage(image.copy(region));
     } else
         pixmap = QPixmap::fromImage(image);
 
@@ -1049,58 +1084,11 @@ void ChartView::ExportPNG()
     QApplication::restoreOverrideCursor();
 }
 
-void ChartView::ApplyConfigurationChange()
-{
-    /*
-    if (str == m_name)
-        //ReadSettings();
-    else {
-        bool animation = qApp->instance()->property("chartanimation").toBool();
-        if (animation)
-            m_chart->setAnimationOptions(QChart::SeriesAnimations);
-        else
-            m_chart->setAnimationOptions(QChart::NoAnimation);
-
-        m_chart->setTheme(QChart::ChartTheme(qApp->instance()->property("charttheme").toInt()));
-    }
-    */
-}
 
 void ChartView::resizeEvent(QResizeEvent* event)
 {
     event->accept();
     m_centralWidget->resize(0.99 * size());
-    /*
-    if(event->size().width() > event->size().height()){
-        QWidget::resize(event->size().height(),event->size().height());
-    }else{
-        QWidget::resize(event->size().width(),event->size().width());
-    }*/
-}
-
-void ChartView::ResetFontConfig()
-{
-    /*
-    ChartConfig chartconfig = m_last_config;
-    QFont font;
-
-    if (!m_font.isEmpty() && !m_font.isNull())
-        font = QFont(m_font);
-
-    font.setPointSize(11);
-    font.setWeight(QFont::DemiBold);
-
-    chartconfig.m_label = font;
-    chartconfig.m_ticks = font;
-    chartconfig.m_keys = font;
-    font.setPointSize(12);
-
-    chartconfig.m_title = font;
-    m_last_config = chartconfig;
-    setChartConfig(chartconfig);
-    m_chartconfigdialog->setConfig(chartconfig);
-    */
-#warning reimplement me
 }
 
 void ChartView::SaveFontConfig()
@@ -1110,16 +1098,12 @@ void ChartView::SaveFontConfig()
         tr("Json(*.json)"));
     if (str.isEmpty() || str.isNull())
         return;
-    emit LastDirChanged(str);
+
     QFile file(str);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        // We're going to streaming text to the file
         QTextStream stream(&file);
-
         stream << QJsonDocument(CurrentFontConfig()).toJson(QJsonDocument::Indented);
-
         file.close();
-        qDebug() << "Writing finished";
     }
 }
 
@@ -1130,7 +1114,7 @@ void ChartView::LoadFontConfig()
         tr("Json (*.json)"));
     if (str.isEmpty() || str.isNull())
         return;
-    emit LastDirChanged(str);
+
     QFile file(str);
     if (!file.open(QIODevice::ReadOnly))
         return;
@@ -1138,7 +1122,8 @@ void ChartView::LoadFontConfig()
     QJsonDocument doc = QJsonDocument::fromJson(content);
     m_currentChartConfig = doc.object();
     setFontConfig(doc.object());
-    AddExportSetting(str, "from file", m_currentChartConfig);
+    QFileInfo info(str);
+    AddExportSetting(info.baseName(), str, m_currentChartConfig);
 }
 
 #include "chartview.moc"
