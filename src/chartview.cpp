@@ -723,6 +723,10 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
     UpdateAxisConfig(config["xAxis"].toObject(), m_XAxis);
     UpdateAxisConfig(config["yAxis"].toObject(), m_YAxis);
 
+    QFont keyFont;
+    keyFont.fromString(config["KeyFont"].toString());
+    m_chart->legend()->setFont(keyFont);
+
     if (config["Legend"].toBool()) {
         m_chart->legend()->setVisible(true);
         if (config["Alignment"].toInt() == Qt::AlignTop
@@ -732,9 +736,8 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
             m_chart->legend()->setAlignment(Qt::Alignment(config["Alignment"].toInt()));
         else
             m_chart->legend()->setAlignment(Qt::AlignRight);
-        m_chart->legend()->setFont(config["KeyFont"].toString());
         for (PeakCallOut* call : m_peak_anno)
-            call->setFont(config["KeyFont"].toString());
+            call->setFont(keyFont);
     } else {
         m_chart->legend()->setVisible(false);
     }
@@ -829,6 +832,10 @@ void ChartView::setFontConfig(const QJsonObject& chartconfig)
     QFont font;
     font.fromString(chartconfig["TitleFont"].toString());
     m_chart->setTitleFont(font);
+
+    QFont keyFont;
+    keyFont.fromString(chartconfig["KeyFont"].toString());
+    m_chart->legend()->setFont(keyFont);
 }
 
 void ChartView::setTitle(const QString& str)
@@ -1133,11 +1140,12 @@ void ChartView::LoadFontConfig()
         return;
     auto content = file.readAll();
     QJsonDocument doc = QJsonDocument::fromJson(content);
-    m_currentChartConfig = doc.object();
+    // m_currentChartConfig = doc.object();
     setFontConfig(doc.object());
     QFileInfo info(str);
     AddExportSetting(info.baseName(), str, m_currentChartConfig);
     emit ExportSettingsFileAdded(info.baseName(), str, m_currentChartConfig);
+    m_chartconfigdialog->setChartConfig(CurrentChartConfig());
 }
 
 #include "chartview.moc"

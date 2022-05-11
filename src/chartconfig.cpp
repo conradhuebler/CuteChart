@@ -306,6 +306,7 @@ void ChartConfigDialog::setKeysFont()
     QFont font = QFontDialog::getFont(&ok, tmp, this);
     if (ok) {
         m_chart_config["KeyFont"] = font.toString();
+        qDebug() << font;
         emit ConfigChanged(ChartConfigJson());
     }
 }
@@ -316,10 +317,8 @@ void ChartConfigDialog::setTitleFont()
     QFont tmp;
     tmp.fromString(m_chart_config["TitleFont"].toString());
     QFont font = QFontDialog::getFont(&ok, tmp, this);
-    std::cout << font.toString().toStdString() << std::endl;
     if (ok) {
         m_chart_config["TitleFont"] = font.toString();
-
         emit ConfigChanged(ChartConfigJson());
     }
 }
@@ -330,7 +329,6 @@ void ChartConfigDialog::setAxisTicksFont()
     QFont tmp;
     tmp.fromString(m_chart_config["TitleFont"].toString());
     QFont font = QFontDialog::getFont(&ok, tmp, this);
-    std::cout << font.toString().toStdString() << std::endl;
     if (ok) {
         QJsonObject axis = m_chart_config["xAxis"].toObject();
         axis["TicksFont"] = font.toString();
