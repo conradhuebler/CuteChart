@@ -708,6 +708,12 @@ void ChartView::UpdateChartConfig(const QJsonObject& config, bool force)
 
 void ChartView::setChartConfig(const QJsonObject& chartconfig)
 {
+    // It seems in SupraFit is a leak, resulting in incomplete ChartView object - this fixes it
+    // qDebug() << 1;
+    if(!m_XAxis || !m_YAxis)
+        return;
+    // qDebug() << 2;
+
     /* Something very strange is going on here, If I did not copy the const QJsonObject, the config get modifed (although const) - GCC and Clang Qt 6.2.3, Manjaro Linux */
     QJsonObject config = chartconfig;
     m_lastChartConfig = m_currentChartConfig;
@@ -720,6 +726,7 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
 
     m_markerSize = config["markerSize"].toDouble();
     m_lineWidth = config["lineWidth"].toDouble();
+
     UpdateAxisConfig(config["xAxis"].toObject(), m_XAxis);
     UpdateAxisConfig(config["yAxis"].toObject(), m_YAxis);
 
