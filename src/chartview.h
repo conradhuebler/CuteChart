@@ -208,12 +208,20 @@ public:
     QPointF currentMousePosition() const { return m_chart_private->currentMousePosition(); }
 
     QJsonObject CurrentChartConfig() const { return m_currentChartConfig; }
+    QJsonObject getChartConfig() const;
+    void setChartConfig(const QJsonObject& config);
+
     QJsonObject CurrentFontConfig() const;
 
     void UpdateChartConfig(const QJsonObject& config, bool force = false);
     void ForceChartConfig(const QJsonObject& config);
 
     void AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings);
+
+    void addVerticalLine(double position_x) { m_chart_private->addVerticalLine(position_x); }
+    bool removeVerticalLine(double position_x) { return m_chart_private->removeVerticalLine(position_x); }
+    void removeAllVerticalLines() { m_chart_private->removeAllVerticalLines(); }
+
 public slots:
     void setSelectBox(const QPointF& topleft, const QPointF& bottomright) { m_chart_private->setSelectBox(topleft, bottomright); }
 
@@ -247,7 +255,6 @@ private:
     void setUi();
     bool has_legend, connected, m_hasAxis = false, m_manual_zoom = false;
     QString m_x_axis, m_y_axis;
-    QJsonObject getChartConfig() const;
     QString Color2RGB(const QColor& color) const;
     void WriteTable(const QString& str);
     ChartConfigDialog* m_chartconfigdialog;
@@ -279,7 +286,6 @@ private:
 
     void UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis);
     QJsonObject getAxisConfig(const QAbstractAxis* axis) const;
-    void setChartConfig(const QJsonObject& config);
     void ApplyConfigAction();
 
     QHash<QString, QPair<QString, QJsonObject>> m_stored_exportsettings;
