@@ -492,6 +492,8 @@ void ChartViewPrivate::mouseDoubleClickEvent(QMouseEvent* event)
 
 void ChartViewPrivate::UpdateZoom()
 {
+    if (!chart()->series().size())
+        return;
     QPointer<QValueAxis> yaxis = qobject_cast<QValueAxis*>(chart()->axes(Qt::Vertical).first());
     if (!yaxis)
         return;

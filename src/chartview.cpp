@@ -292,6 +292,7 @@ void ChartView::setUi()
         this->m_lock_scaling = false;
         this->m_lock_action->setChecked(false);
     });
+    m_config->setEnabled(m_series.size());
 }
 
 void ChartView::AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings)
@@ -348,6 +349,7 @@ QLineSeries* ChartView::addLinearSeries(qreal m, qreal n, qreal min, qreal max)
     series->append(min, y_min);
     series->append(max, y_max);
     addSeries(series);
+    m_config->setEnabled(m_series.size());
     return series;
 }
 
@@ -460,6 +462,7 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
         if (connect(this, SIGNAL(AxisChanged()), this, SLOT(forceformatAxis())))
             connected = true;
     forceformatAxis();
+    m_config->setEnabled(m_series.size());
     emit setUpFinished();
 }
 
