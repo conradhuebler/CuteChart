@@ -113,7 +113,7 @@ public:
      * @brief Get the line color
      * @return Line color
      */
-    QColor color() const { return m_color; }
+    QColor color() const override { return m_color; }
 
 public slots:
     void setColor(const QColor& color) override;

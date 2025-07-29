@@ -22,6 +22,7 @@
 #include "boxwhisker.h"
 #include "chartconfig.h"
 #include "chartview.h"
+#include "chartviewprivate.h"
 #include "listchart.h"
 #include "peakcallout.h"
 #include "series.h"

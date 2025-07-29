@@ -480,6 +480,8 @@ void ChartView::formatAxis()
 
 void ChartView::zoomRect(const QPointF& point1, const QPointF& point2)
 {
+    Q_UNUSED(point1)
+    Q_UNUSED(point2)
     if (m_manual_zoom == true)
         return;
     /*

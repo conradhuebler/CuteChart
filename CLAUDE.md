@@ -314,3 +314,6 @@ cmake .. && make -j4
 - **Testability**: Each component can be unit tested independently
 - **Extensibility**: New features can be added to specific components
 - **Compilation Speed**: Reduced header dependencies through forward declarations
+
+### Note
+  - All enum values: Removed prefixes (Z_Horizontal → Horizontal, S_Horizontal → Horizontal) warum diese umbenennung

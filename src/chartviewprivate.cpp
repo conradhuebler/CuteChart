@@ -287,8 +287,9 @@ void ChartViewPrivate::wheelEvent(QWheelEvent* event)
     else
         emit scaleUp();
 
-    // Get position under cursor for context-aware zooming
+    // Get position under cursor for context-aware zooming (reserved for future use)
     QPointF chartPoint = chart()->mapToValue(QPointF(event->position().x(), event->position().y()));
+    Q_UNUSED(chartPoint)
 
     event->ignore();
 }
