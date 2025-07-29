@@ -1,6 +1,6 @@
 /*
- * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2018 - 2022 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * CuteCharts - An enhanced chart visualization framework based on Qt Charts
+ * Copyright (C) 2018-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,10 +36,10 @@
 ListChart::ListChart()
 {
     m_chartview = new ChartView;
-    connect(m_chartview, &ChartView::LastDirChanged, this, &ListChart::LastDirChanged);
-    connect(m_chartview, &ChartView::ConfigurationChanged, this, &ListChart::ConfigurationChanged);
+    connect(m_chartview, &ChartView::lastDirChanged, this, &ListChart::lastDirChanged);
+    connect(m_chartview, &ChartView::configurationChanged, this, &ListChart::configurationChanged);
     connect(m_chartview, &ChartView::setUpFinished, this, &ListChart::setUpFinished);
-    connect(m_chartview, &ChartView::ExportSettingsFileAdded, this, &ListChart::ExportSettingsFileAdded);
+    connect(m_chartview, &ChartView::exportSettingsFileAdded, this, &ListChart::exportSettingsFileAdded);
 
     m_chartview->setYAxis("Y");
     m_chartview->setXAxis("X");
@@ -48,7 +48,7 @@ ListChart::ListChart()
     m_list->setMaximumWidth(200);
 
     m_list->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_list, &QListWidget::customContextMenuRequested, this, &ListChart::ContextMenu);
+    connect(m_list, &QListWidget::customContextMenuRequested, this, &ListChart::contextMenu);
 
     m_names_list = new QListWidget;
     m_names_list->setMaximumWidth(200);
@@ -63,8 +63,8 @@ ListChart::ListChart()
     layout->addWidget(splitter);
     setLayout(layout);
 
-    connect(m_list, &QListWidget::itemDoubleClicked, this, &ListChart::SeriesListClicked);
-    connect(m_names_list, &QListWidget::itemDoubleClicked, this, &ListChart::NamesListClicked);
+    connect(m_list, &QListWidget::itemDoubleClicked, this, &ListChart::seriesListClicked);
+    connect(m_names_list, &QListWidget::itemDoubleClicked, this, &ListChart::namesListClicked);
 }
 
 ListChart::~ListChart()
@@ -88,7 +88,7 @@ void ListChart::addSeries(QAbstractSeries* series, int index, const QColor& colo
 
     m_chartview->addSeries(series, callout);
 
-    QListWidgetItem* item = NULL;
+    QListWidgetItem* item = nullptr;
     if (index >= m_list->count()) {
         item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, index);
@@ -101,7 +101,7 @@ void ListChart::addSeries(QAbstractSeries* series, int index, const QColor& colo
     }
 
     QXYSeries* s = qobject_cast<QXYSeries*>(series);
-    if (s && item != NULL)
+    if (s && item != nullptr)
         connect(s, &QXYSeries::colorChanged, this, [item](const QColor& color) {
             item->setBackground(color);
         });
@@ -130,29 +130,23 @@ QLineSeries* ListChart::addLinearSeries(qreal m, qreal n, qreal min, qreal max, 
     return serie;
 }
 
-void ListChart::setColor(int index, const QColor& color)
+void ListChart::clear()
 {
-    if (index < m_list->count())
-        m_list->item(index)->setBackground(color);
-}
-
-void ListChart::Clear()
-{
-    m_chartview->ClearChart();
+    m_chartview->clearChart();
     m_series.clear();
     m_list->clear();
     m_names_list->clear();
 }
 
-void ListChart::NamesListClicked(QListWidgetItem* item)
+void ListChart::namesListClicked(QListWidgetItem* item)
 {
     QString str = item->data(Qt::UserRole).toString();
     QList<QListWidgetItem*> list = m_list->findItems(str, Qt::MatchExactly);
     for (int i = 0; i < list.size(); ++i)
-        SeriesListClicked(list[i]);
+        seriesListClicked(list[i]);
 }
 
-void ListChart::HideSeries(int index)
+void ListChart::hideSeries(int index)
 {
     m_hidden[index] = !m_hidden[index];
     QList<QAbstractSeries*> series = m_series.values(index);
@@ -164,7 +158,7 @@ void ListChart::HideSeries(int index)
     }
 }
 
-void ListChart::ContextMenu(const QPoint& pos)
+void ListChart::contextMenu(const QPoint& pos)
 {
     // Handle global position
     QPoint globalPos = m_list->mapToGlobal(pos);
@@ -174,17 +168,17 @@ void ListChart::ContextMenu(const QPoint& pos)
     // Create menu and insert some actions
     QMenu myMenu;
     if (item->flags().testFlag(Qt::ItemIsEditable) == false)
-        myMenu.addAction("Rename", this, SLOT(RenameSeries()));
+        myMenu.addAction("Rename", this, &ListChart::renameSeries);
     else
-        myMenu.addAction("Save", this, SLOT(RenameSeries()));
+        myMenu.addAction("Save", this, &ListChart::renameSeries);
 
-    myMenu.addAction("Change Color", this, SLOT(ChangeColor()));
+    myMenu.addAction("Change Color", this, &ListChart::changeColor);
 
     // Show context menu at handling position
     myMenu.exec(globalPos);
 }
 
-void ListChart::RenameSeries()
+void ListChart::renameSeries()
 {
     QListWidgetItem* item = m_list->item(m_list->currentRow());
     QAbstractSeries* series = item->data(Qt::UserRole + 1).value<QAbstractSeries*>();
@@ -200,19 +194,29 @@ void ListChart::RenameSeries()
     }
 }
 
-void ListChart::ChangeColor()
+void ListChart::setColor(int index, const QColor& color)
+{
+    if (index < m_list->count()) {
+        QListWidgetItem* item = m_list->item(index);
+        QList<QAbstractSeries*> seriesList = m_series.values(index);
+
+        for (QAbstractSeries* series : seriesList) {
+            updateSeriesColor(item, series, color);
+        }
+    }
+}
+
+void ListChart::changeColor()
 {
     QListWidgetItem* item = m_list->item(m_list->currentRow());
     QAbstractSeries* series = item->data(Qt::UserRole + 1).value<QAbstractSeries*>();
 
-    QColor color = QColorDialog::getColor(tr("Choose Color for Series"));
+    if (!series)
+        return;
 
-    if (qobject_cast<QXYSeries*>(series)) {
-        item->setBackground(color);
-        qobject_cast<QXYSeries*>(series)->setColor(color);
-    }
-    if (qobject_cast<QScatterSeries*>(series)) {
-        qobject_cast<QScatterSeries*>(series)->setBorderColor(color);
+    QColor color = QColorDialog::getColor(tr("Choose Color for Series"));
+    if (color.isValid()) {
+        updateSeriesColor(item, series, color);
     }
 }
 

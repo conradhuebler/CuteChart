@@ -1,6 +1,6 @@
 /*
- * <one line to give the program's name and a brief idea of what it does.>
- * Copyright (C) 2016 - 2022 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * CuteCharts - An enhanced chart visualization framework based on Qt Charts
+ * Copyright (C) 2016-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,21 +67,21 @@ ChartView::ChartView()
     m_chart = new QChart();
     m_chart_private = new ChartViewPrivate(m_chart, this);
 
-    connect(m_chart_private, SIGNAL(ZoomChanged()), this, SIGNAL(ZoomChanged()));
-    connect(m_chart_private, &ChartViewPrivate::ZoomRect, this, &ChartView::ZoomRect);
-    connect(m_chart_private, SIGNAL(scaleDown()), this, SIGNAL(scaleDown()));
-    connect(m_chart_private, SIGNAL(scaleUp()), this, SIGNAL(scaleUp()));
-    connect(m_chart_private, SIGNAL(AddRect(const QPointF&, const QPointF&)), this, SIGNAL(AddRect(const QPointF&, const QPointF&)));
-    connect(m_chart_private, &ChartViewPrivate::PointDoubleClicked, this, &ChartView::PointDoubleClicked);
-    connect(m_chart_private, &ChartViewPrivate::EscapeSelectMode, this, &ChartView::EscapeSelectMode);
-    connect(m_chart_private, &ChartViewPrivate::RightKey, this, &ChartView::RightKey);
-    connect(m_chart_private, &ChartViewPrivate::LeftKey, this, &ChartView::LeftKey);
+    connect(m_chart_private, &ChartViewPrivate::zoomChanged, this, &ChartView::zoomChanged);
+    connect(m_chart_private, &ChartViewPrivate::zoomRect, this, &ChartView::zoomRect);
+    connect(m_chart_private, &ChartViewPrivate::scaleDown, this, &ChartView::scaleDown);
+    connect(m_chart_private, &ChartViewPrivate::scaleUp, this, &ChartView::scaleUp);
+    connect(m_chart_private, &ChartViewPrivate::addRect, this, &ChartView::addRect);
+    connect(m_chart_private, &ChartViewPrivate::pointDoubleClicked, this, &ChartView::pointDoubleClicked);
+    connect(m_chart_private, &ChartViewPrivate::escapeSelectMode, this, &ChartView::escapeSelectMode);
+    connect(m_chart_private, &ChartViewPrivate::rightKey, this, &ChartView::rightKey);
+    connect(m_chart_private, &ChartViewPrivate::leftKey, this, &ChartView::leftKey);
 
     m_chart->legend()->setVisible(false);
     m_chart->legend()->setAlignment(Qt::AlignRight);
     setUi();
-    setZoomStrategy(ZoomStrategy::Z_Rectangular);
-    setSelectStrategy(S_None);
+    setZoomStrategy(ZoomStrategy::Rectangular);
+    setSelectStrategy(SelectStrategy::None);
     setAutoScaleStrategy(AutoScaleStrategy::SpaceScale);
     m_chart_private->setVerticalLineEnabled(false);
 }
@@ -107,11 +107,11 @@ void ChartView::setUi()
 
     m_configure_series = new QAction(this);
     m_configure_series->setText(tr("Configure"));
-    connect(m_configure_series, SIGNAL(triggered()), this, SLOT(Configure()));
+    connect(m_configure_series, &QAction::triggered, this, &ChartView::configure);
 
     QAction* plotsettings = new QAction(this);
     plotsettings->setText(tr("Plot Settings"));
-    connect(plotsettings, SIGNAL(triggered()), this, SLOT(PlotSettings()));
+    connect(plotsettings, &QAction::triggered, this, &ChartView::plotSettings);
     menu->addAction(plotsettings);
 
     m_lock_action = new QAction(this);
@@ -127,7 +127,7 @@ void ChartView::setUi()
     connect(scaleAction, &QAction::triggered, this, [this]() {
         AutoScaleStrategy strategy = m_autoscalestrategy;
         m_autoscalestrategy = AutoScaleStrategy::SpaceScale;
-        forceformatAxis();
+        forceFormatAxis();
         m_autoscalestrategy = strategy;
     });
 
@@ -138,14 +138,14 @@ void ChartView::setUi()
     connect(MinMaxscaleAction, &QAction::triggered, this, [this]() {
         AutoScaleStrategy strategy = m_autoscalestrategy;
         m_autoscalestrategy = AutoScaleStrategy::QtNiceNumbers;
-        forceformatAxis();
+        forceFormatAxis();
         m_autoscalestrategy = strategy;
     });
     menu->addAction(MinMaxscaleAction);
 
     QAction* exportpng = new QAction(this);
     exportpng->setText(tr("Export Diagram (PNG)"));
-    connect(exportpng, SIGNAL(triggered()), this, SLOT(ExportPNG()));
+    connect(exportpng, &QAction::triggered, this, &ChartView::exportPNG);
     menu->addAction(exportpng);
 
     m_exportMenu = new QMenu(tr("Export Style"));
@@ -161,30 +161,30 @@ void ChartView::setUi()
 
     QAction* saveConfig = new QAction(this);
     saveConfig->setText(tr("Save Font Config (Json)"));
-    connect(saveConfig, SIGNAL(triggered()), this, SLOT(SaveFontConfig()));
+    connect(saveConfig, &QAction::triggered, this, &ChartView::saveFontConfig);
     menu->addAction(saveConfig);
 
     QAction* loadConfig = new QAction(this);
     loadConfig->setText(tr("Load Font Config (Json)"));
-    connect(loadConfig, SIGNAL(triggered()), this, SLOT(LoadFontConfig()));
+    connect(loadConfig, &QAction::triggered, this, &ChartView::loadFontConfig);
     menu->addAction(loadConfig);
 
     m_select_strategy = new QMenu(tr("Select Strategy"));
 
     m_select_none = new QAction(tr("None"));
-    m_select_none->setData(SelectStrategy::S_None);
+    m_select_none->setData(static_cast<int>(SelectStrategy::None));
     m_select_none->setCheckable(true);
 
     m_select_horizonal = new QAction(tr("Horizontal"));
-    m_select_horizonal->setData(SelectStrategy::S_Horizontal);
+    m_select_horizonal->setData(static_cast<int>(SelectStrategy::Horizontal));
     m_select_horizonal->setCheckable(true);
 
     m_select_vertical = new QAction(tr("Vertical"));
-    m_select_vertical->setData(SelectStrategy::S_Vertical);
+    m_select_vertical->setData(static_cast<int>(SelectStrategy::Vertical));
     m_select_vertical->setCheckable(true);
 
     m_select_rectangular = new QAction(tr("Rectangular"));
-    m_select_rectangular->setData(SelectStrategy::S_Rectangular);
+    m_select_rectangular->setData(static_cast<int>(SelectStrategy::Rectangular));
     m_select_rectangular->setCheckable(true);
 
     m_select_strategy->addAction(m_select_none);
@@ -196,28 +196,28 @@ void ChartView::setUi()
     connect(m_select_strategy, &QMenu::triggered, m_select_strategy, [this](QAction* action) {
         SelectStrategy select = static_cast<SelectStrategy>(action->data().toInt());
         this->m_chart_private->setSelectStrategy(select);
-        m_select_none->setChecked(select == SelectStrategy::S_None);
-        m_select_horizonal->setChecked(select == SelectStrategy::S_Horizontal);
-        m_select_vertical->setChecked(select == SelectStrategy::S_Vertical);
-        m_select_rectangular->setChecked(select == SelectStrategy::S_Rectangular);
+        m_select_none->setChecked(select == SelectStrategy::None);
+        m_select_horizonal->setChecked(select == SelectStrategy::Horizontal);
+        m_select_vertical->setChecked(select == SelectStrategy::Vertical);
+        m_select_rectangular->setChecked(select == SelectStrategy::Rectangular);
     });
 
     m_zoom_strategy = new QMenu(tr("Zoom Strategy"));
 
     m_zoom_none = new QAction(tr("None"));
-    m_zoom_none->setData(ZoomStrategy::Z_None);
+    m_zoom_none->setData(static_cast<int>(ZoomStrategy::None));
     m_zoom_none->setCheckable(true);
 
     m_zoom_horizonal = new QAction(tr("Horizontal"));
-    m_zoom_horizonal->setData(ZoomStrategy::Z_Horizontal);
+    m_zoom_horizonal->setData(static_cast<int>(ZoomStrategy::Horizontal));
     m_zoom_horizonal->setCheckable(true);
 
     m_zoom_vertical = new QAction(tr("Vertical"));
-    m_zoom_vertical->setData(ZoomStrategy::Z_Vertical);
+    m_zoom_vertical->setData(static_cast<int>(ZoomStrategy::Vertical));
     m_zoom_vertical->setCheckable(true);
 
     m_zoom_rectangular = new QAction(tr("Rectangular"));
-    m_zoom_rectangular->setData(ZoomStrategy::Z_Rectangular);
+    m_zoom_rectangular->setData(static_cast<int>(ZoomStrategy::Rectangular));
     m_zoom_rectangular->setCheckable(true);
 
     m_zoom_strategy->addAction(m_zoom_none);
@@ -229,19 +229,18 @@ void ChartView::setUi()
     connect(m_zoom_strategy, &QMenu::triggered, m_zoom_strategy, [this](QAction* action) {
         ZoomStrategy select = static_cast<ZoomStrategy>(action->data().toInt());
         this->m_chart_private->setZoomStrategy(select);
-        m_zoom_none->setChecked(select == ZoomStrategy::Z_None);
-        m_zoom_horizonal->setChecked(select == ZoomStrategy::Z_Horizontal);
-        m_zoom_vertical->setChecked(select == ZoomStrategy::Z_Vertical);
-        m_zoom_rectangular->setChecked(select == ZoomStrategy::Z_Rectangular);
+        m_zoom_none->setChecked(select == ZoomStrategy::None);
+        m_zoom_horizonal->setChecked(select == ZoomStrategy::Horizontal);
+        m_zoom_vertical->setChecked(select == ZoomStrategy::Vertical);
+        m_zoom_rectangular->setChecked(select == ZoomStrategy::Rectangular);
     });
 
     m_ignore = new QPushButton(tr("Ignore"));
     m_ignore->setMaximumWidth(100);
 
     m_action_button = new QPushButton;
-    // m_action_button->setFlat(true);
     m_action_button->setMaximumWidth(100);
-    connect(m_action_button, &QPushButton::clicked, this, &ChartView::ApplyConfigAction);
+    connect(m_action_button, &QPushButton::clicked, this, &ChartView::applyConfigAction);
 
     m_config = new QPushButton(tr("Tools"));
     m_config->setFlat(true);
@@ -277,25 +276,26 @@ void ChartView::setUi()
     m_chartconfigdialog = new ChartConfigDialog(this);
 
     connect(m_chartconfigdialog, &ChartConfigDialog::ConfigChanged, this, [this](const QJsonObject& config) {
-        this->ForceChartConfig(config);
-        emit ConfigurationChanged();
+        this->forceChartConfig(config);
+        emit configurationChanged();
     });
-    connect(m_chartconfigdialog, SIGNAL(ScaleAxis()), this, SLOT(forceformatAxis()));
-    connect(m_chartconfigdialog, SIGNAL(ResetFontConfig()), this, SLOT(ResetFontConfig()));
+    connect(m_chartconfigdialog, &ChartConfigDialog::ScaleAxis, this, &ChartView::forceFormatAxis);
+#pragma message "TODO: connect to ChartConfigDialog::ResetFontConfig"
+    // connect(m_chartconfigdialog, &ChartConfigDialog::ResetFontConfig, this, &ChartView::ResetFontConfig);
 
-    connect(m_chart_private, &ChartViewPrivate::LockZoom, this, [this]() {
+    connect(m_chart_private, &ChartViewPrivate::lockZoom, this, [this]() {
         this->m_lock_scaling = true;
         this->m_lock_action->setChecked(true);
     });
 
-    connect(m_chart_private, &ChartViewPrivate::UnLockZoom, this, [this]() {
+    connect(m_chart_private, &ChartViewPrivate::unlockZoom, this, [this]() {
         this->m_lock_scaling = false;
         this->m_lock_action->setChecked(false);
     });
     m_config->setEnabled(m_series.size());
 }
 
-void ChartView::AddExportSetting(const QString& name, const QString& description, const QJsonObject& settings)
+void ChartView::addExportSetting(const QString& name, const QString& description, const QJsonObject& settings)
 {
     if (m_stored_exportsettings.contains(name))
         return;
@@ -315,7 +315,7 @@ void ChartView::AddExportSetting(const QString& name, const QString& description
     }
 }
 
-void ChartView::Configure()
+void ChartView::configure()
 {
     if (m_centralWidget->currentIndex() == 0)
         m_centralWidget->setCurrentIndex(1);
@@ -326,19 +326,19 @@ void ChartView::Configure()
 void ChartView::setZoomStrategy(ZoomStrategy strategy)
 {
     m_chart_private->setZoomStrategy(strategy);
-    m_zoom_none->setChecked(strategy == ZoomStrategy::Z_None);
-    m_zoom_horizonal->setChecked(strategy == ZoomStrategy::Z_Horizontal);
-    m_zoom_vertical->setChecked(strategy == ZoomStrategy::Z_Vertical);
-    m_zoom_rectangular->setChecked(strategy == ZoomStrategy::Z_Rectangular);
+    m_zoom_none->setChecked(strategy == ZoomStrategy::None);
+    m_zoom_horizonal->setChecked(strategy == ZoomStrategy::Horizontal);
+    m_zoom_vertical->setChecked(strategy == ZoomStrategy::Vertical);
+    m_zoom_rectangular->setChecked(strategy == ZoomStrategy::Rectangular);
 }
 
 void ChartView::setSelectStrategy(SelectStrategy strategy)
 {
     m_chart_private->setSelectStrategy(strategy);
-    m_select_none->setChecked(strategy == SelectStrategy::S_None);
-    m_select_horizonal->setChecked(strategy == SelectStrategy::S_Horizontal);
-    m_select_vertical->setChecked(strategy == SelectStrategy::S_Vertical);
-    m_select_rectangular->setChecked(strategy == SelectStrategy::S_Rectangular);
+    m_select_none->setChecked(strategy == SelectStrategy::None);
+    m_select_horizonal->setChecked(strategy == SelectStrategy::Horizontal);
+    m_select_vertical->setChecked(strategy == SelectStrategy::Vertical);
+    m_select_rectangular->setChecked(strategy == SelectStrategy::Rectangular);
 }
 
 QLineSeries* ChartView::addLinearSeries(qreal m, qreal n, qreal min, qreal max)
@@ -372,8 +372,7 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
                 annotation->setText(series->name(), point);
                 annotation->setAnchor(point);
                 annotation->setZValue(11);
-                //annotation->updateGeometry();
-                annotation->show();
+                annotation->setVisible(true);
                 connect(series, &QAbstractSeries::visibleChanged, series, [series, annotation]() {
                     annotation->setVisible(series->isVisible());
                 });
@@ -409,11 +408,11 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             QPointer<LineSeries> line = qobject_cast<LineSeries*>(series);
             QPointer<ScatterSeries> scatter = qobject_cast<ScatterSeries*>(series);
             if (line) {
-                show = line->ShowInLegend();
+                show = line->showInLegend();
             } else if (scatter)
 
             {
-                show = scatter->ShowInLegend();
+                show = scatter->showInLegend();
             }
             this->m_chart->legend()->markers(series).first()->setVisible(show);
         }
@@ -424,11 +423,11 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             QPointer<LineSeries> line = qobject_cast<LineSeries*>(series);
             QPointer<ScatterSeries> scatter = qobject_cast<ScatterSeries*>(series);
             if (line) {
-                show = line->ShowInLegend();
+                show = line->showInLegend();
             } else if (scatter)
 
             {
-                show = scatter->ShowInLegend();
+                show = scatter->showInLegend();
             }
             if (series->isVisible())
                 this->m_chart->legend()->markers(series).first()->setVisible(!show);
@@ -445,7 +444,7 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             m_chart->legend()->setVisible(vis);
         });
 
-        show = line->ShowInLegend();
+        show = line->showInLegend();
     } else if (scatter) {
         connect(scatter, &ScatterSeries::legendChanged, series, [this, series](bool legend) {
             bool vis = m_chart->legend()->isVisible();
@@ -454,32 +453,32 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             m_chart->legend()->setVisible(vis);
         });
 
-        show = scatter->ShowInLegend();
+        show = scatter->showInLegend();
     }
     m_chart->legend()->markers(series).first()->setVisible(show);
-    connect(series, SIGNAL(visibleChanged()), this, SLOT(forceformatAxis()));
+    connect(series, &QAbstractSeries::visibleChanged, this, &ChartView::forceFormatAxis);
     if (!connected)
-        if (connect(this, SIGNAL(AxisChanged()), this, SLOT(forceformatAxis())))
+        if (connect(this, &ChartView::axisChanged, this, &ChartView::forceFormatAxis))
             connected = true;
-    forceformatAxis();
+    forceFormatAxis();
     m_config->setEnabled(m_series.size());
     emit setUpFinished();
 }
 
-void ChartView::ClearChart()
+void ChartView::clearChart()
 {
     m_chart->removeAllSeries();
-    emit ChartCleared();
+    emit chartCleared();
 }
 
 void ChartView::formatAxis()
 {
     if (m_pending || m_chart->series().isEmpty())
         return;
-    forceformatAxis();
+    forceFormatAxis();
 }
 
-void ChartView::ZoomRect(const QPointF& point1, const QPointF& point2)
+void ChartView::zoomRect(const QPointF& point1, const QPointF& point2)
 {
     if (m_manual_zoom == true)
         return;
@@ -492,10 +491,10 @@ void ChartView::ZoomRect(const QPointF& point1, const QPointF& point2)
     max = qMax(point1.y(), point2.y());
     m_YAxis->setRange(min, max);
     */
-    m_chart_private->UpdateZoom();
+    m_chart_private->updateZoom();
 }
 
-void ChartView::ScaleAxis(QPointer<QValueAxis> axis, qreal& min, qreal& max)
+void ChartView::scaleAxis(QPointer<QValueAxis> axis, qreal& min, qreal& max)
 {
     /*
     min  = ChartTools::NiceFloor(min);
@@ -519,40 +518,36 @@ void ChartView::ScaleAxis(QPointer<QValueAxis> axis, qreal& min, qreal& max)
         max = std::ceil(max);
         min = std::floor(min);
     } else {
-        max = ChartTools::ceil(max - mean) + mean;
+        max = ChartTools::CustomCeil(max - mean) + mean;
         if (min && !(0 < min && min < 1))
-            min = ChartTools::floor(min - mean) + mean;
+            min = ChartTools::CustomFloor(min - mean) + mean;
         else
             min = 0;
     }
 
-    int ticks = ChartTools::scale(max - min) / int(ChartTools::scale(max - min) / 5) + 1;
-    //ticks = 2*(max-min)-1;
-    //if (ticks < 10) {
+    int ticks = ChartTools::ScaleToNormalizedRange(max - min) / int(ChartTools::ScaleToNormalizedRange(max - min) / 5) + 1;
     axis->setTickCount(ticks);
     axis->setRange(min, max);
-    //} else
-    //    axis->applyNiceNumbers();
 }
 
-void ChartView::forceformatAxis()
+void ChartView::forceFormatAxis()
 {
     if (m_lock_scaling || m_chart->series().size() == 0)
         return;
     m_pending = true;
 
     if (m_autoscalestrategy == AutoScaleStrategy::QtNiceNumbers)
-        QtNiceNumbersScale();
+        qtNiceNumbersScale();
     else if (m_autoscalestrategy == AutoScaleStrategy::SpaceScale)
-        SpaceScale();
+        spaceScale();
 
     if (connected)
         m_chartconfigdialog->setChartConfig(getChartConfig());
 
-    m_chart_private->UpdateZoom();
+    m_chart_private->updateZoom();
 }
 
-void ChartView::SpaceScale()
+void ChartView::spaceScale()
 {
     qreal x_min = 0;
     qreal x_max = 0;
@@ -584,8 +579,8 @@ void ChartView::SpaceScale()
         }
     }
 
-    ScaleAxis(m_XAxis, x_min, x_max);
-    ScaleAxis(m_YAxis, y_min, y_max);
+    scaleAxis(m_XAxis, x_min, x_max);
+    scaleAxis(m_YAxis, y_min, y_max);
 
     m_XAxis->setTitleText(m_x_axis);
     m_YAxis->setTitleText(m_y_axis);
@@ -597,7 +592,7 @@ void ChartView::SpaceScale()
     m_xmax = x_max;
 }
 
-void ChartView::QtNiceNumbersScale()
+void ChartView::qtNiceNumbersScale()
 {
     qreal x_min = 1e12;
     qreal x_max = -1 * 1e12;
@@ -644,7 +639,7 @@ void ChartView::QtNiceNumbersScale()
     m_xmax = x_max;
 }
 
-void ChartView::PlotSettings()
+void ChartView::plotSettings()
 {
     if (!connected)
         return;
@@ -655,7 +650,7 @@ void ChartView::PlotSettings()
     m_chartconfigdialog->activateWindow();
 }
 
-void ChartView::UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
+void ChartView::updateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
 {
     axis->setTitleText(config["Title"].toString());
 
@@ -674,7 +669,7 @@ void ChartView::UpdateAxisConfig(const QJsonObject& config, QAbstractAxis* axis)
     }
 }
 
-void ChartView::ForceChartConfig(const QJsonObject& config)
+void ChartView::forceChartConfig(const QJsonObject& config)
 {
     QJsonObject tmp = ChartTools::MergeJsonObject(getChartConfig(), config);
 
@@ -686,7 +681,7 @@ void ChartView::ForceChartConfig(const QJsonObject& config)
     m_ignore->setHidden(false);
 }
 
-void ChartView::UpdateChartConfig(const QJsonObject& config, bool force)
+void ChartView::updateChartConfig(const QJsonObject& config, bool force)
 {
     if (m_prevent_notification) {
         m_prevent_notification = false;
@@ -712,12 +707,11 @@ void ChartView::UpdateChartConfig(const QJsonObject& config, bool force)
 void ChartView::setChartConfig(const QJsonObject& chartconfig)
 {
     // It seems in SupraFit is a leak, resulting in incomplete ChartView object - this fixes it
-    // qDebug() << 1;
     if(!m_XAxis || !m_YAxis)
         return;
-    // qDebug() << 2;
 
-    /* Something very strange is going on here, If I did not copy the const QJsonObject, the config get modifed (although const) - GCC and Clang Qt 6.2.3, Manjaro Linux */
+    /* Something very strange is going on here, If I did not copy the const QJsonObject,
+       the config get modifed (although const) - GCC and Clang Qt 6.2.3, Manjaro Linux */
     QJsonObject config = chartconfig;
     m_lastChartConfig = m_currentChartConfig;
     m_currentChartConfig = chartconfig;
@@ -730,8 +724,8 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
     m_markerSize = config["markerSize"].toDouble();
     m_lineWidth = config["lineWidth"].toDouble();
 
-    UpdateAxisConfig(config["xAxis"].toObject(), m_XAxis);
-    UpdateAxisConfig(config["yAxis"].toObject(), m_YAxis);
+    updateAxisConfig(config["xAxis"].toObject(), m_XAxis);
+    updateAxisConfig(config["yAxis"].toObject(), m_YAxis);
 
     QFont keyFont;
     keyFont.fromString(config["KeyFont"].toString());
@@ -804,7 +798,7 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
     m_chartconfigdialog->setChartConfig(m_currentChartConfig);
 }
 
-void ChartView::ApplyConfigAction()
+void ChartView::applyConfigAction()
 {
     if (m_apply_action == -1) {
         setChartConfig(m_lastChartConfig);
@@ -901,7 +895,7 @@ QJsonObject ChartView::getChartConfig() const
     return chartconfig;
 }
 
-QJsonObject ChartView::CurrentFontConfig() const
+QJsonObject ChartView::currentFontConfig() const
 {
     QJsonObject font;
     font["KeyFont"] = m_chart->legend()->font().toString();
@@ -918,198 +912,158 @@ QJsonObject ChartView::CurrentFontConfig() const
     return font;
 }
 
-QString ChartView::Color2RGB(const QColor& color) const
+QString ChartView::color2RGB(const QColor& color) const
 {
     QString result;
     result = QString::number(color.toRgb().red()) + "," + QString::number(color.toRgb().green()) + "," + QString::number(color.toRgb().blue());
     return result;
 }
 
-void ChartView::ExportPNG()
+void ChartView::exportPNG()
 {
     const QString str = QFileDialog::getSaveFileName(this, tr("Save File"),
         qApp->instance()->property("lastDir").toString() + m_last_filename,
         tr("Images (*.png)"));
     if (str.isEmpty() || str.isNull())
         return;
-    emit LastDirChanged(str);
+    emit lastDirChanged(str);
 
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-    bool verticalline = m_chart_private->isVerticalLineEnabled();
+
+    // Save current state
+    bool verticalLineEnabled = m_chart_private->isVerticalLineEnabled();
     m_chart_private->setVerticalLineEnabled(false);
-
     QChart::AnimationOptions animation = m_chart->animationOptions();
-
     m_chart->setAnimationOptions(QChart::NoAnimation);
 
+    // Prepare for export
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
-    // first cache the original size, within SupraFit
+    // Cache the original size
     QSize widgetSize = m_centralWidget->size();
 
-    // and resize as set in settings
+    // Resize for export
     m_chart->resize(m_x_size, m_y_size);
     m_centralWidget->resize(m_x_size, m_y_size);
 
+    // Update callouts and scene
     for (PeakCallOut* call : m_peak_anno) {
         call->update();
     }
     m_chart->scene()->update();
     QApplication::processEvents();
 
+    // Setup for high-resolution rendering
     int w = m_chart->rect().size().width();
     int h = m_chart->rect().size().height();
-    // scaling is important for good resolution
     QImage image(QSize(m_scaling * w, m_scaling * h), QImage::Format_ARGB32);
-
     image.fill(Qt::transparent);
+
     QPainter painter(&image);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::TextAntialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
+    // Cache grid settings
     bool xGrid = m_XAxis->isGridLineVisible();
     bool yGrid = m_YAxis->isGridLineVisible();
 
-    // hide grid lines
-    if (m_currentChartConfig["noGrid"].toBool() == true) {
+    // Hide grid lines if configured
+    if (m_currentChartConfig["noGrid"].toBool()) {
         m_XAxis->setGridLineVisible(false);
         m_YAxis->setGridLineVisible(false);
     }
 
+    // Cache and adjust axis appearance
     QPen xPen = m_XAxis->linePen();
     QPen yPen = m_YAxis->linePen();
 
-    QPen pen = m_XAxis->linePen();
-    pen.setColor(Qt::black);
-    pen.setWidth(2);
-
-    // make axis stronger
-    if (m_currentChartConfig["emphasizeAxis"].toBool() == true) {
-        m_XAxis->setLinePen(pen);
-        m_YAxis->setLinePen(pen);
+    if (m_currentChartConfig["emphasizeAxis"].toBool()) {
+        QPen emphasizedPen = m_XAxis->linePen();
+        emphasizedPen.setColor(Qt::black);
+        emphasizedPen.setWidth(2);
+        m_XAxis->setLinePen(emphasizedPen);
+        m_YAxis->setLinePen(emphasizedPen);
     }
+
+    // Handle background transparency
     QBrush brush_backup = m_chart->backgroundBrush();
-    QBrush brush;
-    brush.setColor(Qt::transparent);
-
-    // remove background of chart
-    if (m_currentChartConfig["transparentImage"].toBool() == true)
-        m_chart->setBackgroundBrush(brush);
-
-    // cache all individual series size and border colors and remove border colors and resize series
-
-    QList<QColor> colors;
-    QList<double> size, width;
-    QList<bool> openGl;
-    for (QAbstractSeries* serie : m_chart->series()) {
-        if (qobject_cast<QScatterSeries*>(serie)) {
-            colors << qobject_cast<QScatterSeries*>(serie)->borderColor();
-            qobject_cast<QScatterSeries*>(serie)->setBorderColor(Qt::transparent);
-            size << qobject_cast<QScatterSeries*>(serie)->markerSize();
-
-            // if (qobject_cast<QScatterSeries*>(serie)->markerSize() != m_markerSize)
-            qobject_cast<QScatterSeries*>(serie)->setMarkerSize(m_markerSize);
-
-        } else if (qobject_cast<LineSeries*>(serie)) {
-            width << qobject_cast<LineSeries*>(serie)->LineWidth();
-            qobject_cast<LineSeries*>(serie)->setLineWidth(m_lineWidth);
-        }
-        openGl << serie->useOpenGL();
-        serie->setUseOpenGL(false);
+    if (m_currentChartConfig["transparentImage"].toBool()) {
+        QBrush transparentBrush;
+        transparentBrush.setColor(Qt::transparent);
+        m_chart->setBackgroundBrush(transparentBrush);
     }
 
-    // do the painting!!
+    // Save series states using the state pattern
+    std::vector<std::pair<QAbstractSeries*, std::unique_ptr<SeriesState>>> seriesStates;
+
+    for (QAbstractSeries* serie : m_chart->series()) {
+        auto state = SeriesStateFactory::createState(serie);
+        if (state) {
+            state->saveState(serie);
+
+            // Apply export-specific settings
+            if (auto scatter = qobject_cast<QScatterSeries*>(serie)) {
+                scatter->setMarkerSize(m_markerSize);
+                scatter->setBorderColor(Qt::transparent);
+            } else if (auto line = qobject_cast<LineSeries*>(serie)) {
+                line->setLineWidth(m_lineWidth);
+            }
+
+            // Disable OpenGL for export
+            serie->setUseOpenGL(false);
+
+            seriesStates.push_back({ serie, std::move(state) });
+        }
+    }
+
+    // Render chart to image
     m_chart->scene()->render(&painter, QRectF(0, 0, m_scaling * w, m_scaling * h), m_chart->rect());
 
-    /*
-     * copyied from here:
-     *
-     * https://stackoverflow.com/questions/3720947/does-qt-have-a-way-to-find-bounding-box-of-an-image
-     *
-     */
-    // This part is kept of historical reasons ;-)
-    /*
-    auto border = [](const QImage& tmp) -> QImage {
-        int l = tmp.width(), r = 0, t = tmp.height(), b = 0;
-        for (int y = 0; y < tmp.height(); ++y) {
-            QRgb* row = (QRgb*)tmp.scanLine(y);
-            bool rowFilled = false;
-            for (int x = 0; x < tmp.width(); ++x) {
-                if (qAlpha(row[x])) {
-                    rowFilled = true;
-                    r = std::max(r, x);
-                    if (l > x) {
-                        l = x;
-                        x = r; // shortcut to only search for new right bound from here
-                    }
-                }
-            }
-            if (rowFilled) {
-                t = std::min(t, y);
-                b = y;
-            }
-        }
-        return tmp.copy(l + 1, t + 1, r + 1, b + 1);
-    };
-    */
+    // Process the image as needed
     QPixmap pixmap;
 
-    // remove transparent border of resulting image
-
-    if (m_currentChartConfig["cropImage"].toBool() == true) {
-
-        // As is this part of the code
-        /*
-        QImage mirrored = border(image);//border(border(image.mirrored(true, true)).mirrored(true, true).mirrored(true, true)).mirrored(true, true);
-        pixmap = QPixmap::fromImage(border(mirrored));
-        */
-
+    if (m_currentChartConfig["cropImage"].toBool()) {
         QRect region = QRegion(QBitmap::fromImage(image.createMaskFromColor(0x00000000))).boundingRect();
         pixmap = QPixmap::fromImage(image.copy(region));
-    } else
+    } else {
         pixmap = QPixmap::fromImage(image);
-
-    // restore background brush
-    m_chart->setBackgroundBrush(brush_backup);
-
-    // restore series colors and size
-    for (QAbstractSeries* serie : m_chart->series()) {
-        if (qobject_cast<QScatterSeries*>(serie)) {
-            qobject_cast<QScatterSeries*>(serie)->setBorderColor(colors.takeFirst());
-            qobject_cast<QScatterSeries*>(serie)->setMarkerSize(size.takeFirst());
-        } else if (qobject_cast<LineSeries*>(serie)) {
-            qobject_cast<LineSeries*>(serie)->setLineWidth(width.takeFirst());
-        }
-        serie->setUseOpenGL(openGl.takeFirst());
     }
 
-    // bring back the grids
+    // Restore all series states
+    for (auto& [series, state] : seriesStates) {
+        state->restoreState(series);
+    }
+
+    // Restore background
+    m_chart->setBackgroundBrush(brush_backup);
+
+    // Restore axis appearance
     m_XAxis->setGridLineVisible(xGrid);
     m_YAxis->setGridLineVisible(yGrid);
-
-    // bring back the old and weak axis
     m_XAxis->setLinePen(xPen);
     m_YAxis->setLinePen(yPen);
 
+    // Restore widget state
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-    // restore old size
     m_centralWidget->resize(widgetSize);
 
-    for (PeakCallOut* call : m_peak_anno)
-        call->Update();
+    // Update callouts
+    for (PeakCallOut* call : m_peak_anno) {
+        call->update();
+    }
 
-    // and nothing ever happens -> Lemon Tree
+    // Restore animation settings
     m_chart->setAnimationOptions(animation);
+    m_chart_private->setVerticalLineEnabled(verticalLineEnabled);
+
+    // Save the image
     m_last_filename = str;
     QFile file(str);
     file.open(QIODevice::WriteOnly);
     pixmap.save(&file, "PNG");
-
-    m_chart_private->setVerticalLineEnabled(verticalline);
 
     QApplication::restoreOverrideCursor();
 }
@@ -1121,7 +1075,7 @@ void ChartView::resizeEvent(QResizeEvent* event)
     m_centralWidget->resize(0.99 * size());
 }
 
-void ChartView::SaveFontConfig()
+void ChartView::saveFontConfig()
 {
     const QString str = QFileDialog::getSaveFileName(this, tr("Save File"),
         qApp->instance()->property("lastDir").toString(),
@@ -1132,12 +1086,12 @@ void ChartView::SaveFontConfig()
     QFile file(str);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream stream(&file);
-        stream << QJsonDocument(CurrentFontConfig()).toJson(QJsonDocument::Indented);
+        stream << QJsonDocument(currentFontConfig()).toJson(QJsonDocument::Indented);
         file.close();
     }
 }
 
-void ChartView::LoadFontConfig()
+void ChartView::loadFontConfig()
 {
     const QString str = QFileDialog::getOpenFileName(this, tr("Open File"),
         qApp->instance()->property("lastDir").toString(),
@@ -1153,9 +1107,182 @@ void ChartView::LoadFontConfig()
     // m_currentChartConfig = doc.object();
     setFontConfig(doc.object());
     QFileInfo info(str);
-    AddExportSetting(info.baseName(), str, m_currentChartConfig);
-    emit ExportSettingsFileAdded(info.baseName(), str, m_currentChartConfig);
-    m_chartconfigdialog->setChartConfig(CurrentChartConfig());
+    addExportSetting(info.baseName(), str, m_currentChartConfig);
+    emit exportSettingsFileAdded(info.baseName(), str, m_currentChartConfig);
+    m_chartconfigdialog->setChartConfig(currentChartConfig());
+}
+
+// Moved inline functions from header for header dependency reduction (Claude Generated)
+
+ZoomStrategy ChartView::currentZoomStrategy() const
+{
+    return m_chart_private->currentZoomStrategy();
+}
+
+SelectStrategy ChartView::currentSelectStrategy() const
+{
+    return m_chart_private->currentSelectStrategy();
+}
+
+void ChartView::removeSeries(QAbstractSeries* series)
+{
+    m_chart->removeSeries(series);
+}
+
+QList<QAbstractSeries*> ChartView::series() const
+{
+    return m_chart->series();
+}
+
+void ChartView::setModal(bool modal)
+{
+    m_chartconfigdialog->setModal(modal);
+}
+
+void ChartView::setAutoScaleStrategy(AutoScaleStrategy strategy)
+{
+    m_autoscalestrategy = strategy;
+}
+
+qreal ChartView::YMaxRange() const
+{
+    if (m_hasAxis)
+        return m_YAxis->max();
+    else
+        return 0;
+}
+
+qreal ChartView::YMinRange() const
+{
+    if (m_hasAxis)
+        return m_YAxis->min();
+    else
+        return 0;
+}
+
+qreal ChartView::XMaxRange() const
+{
+    if (m_hasAxis)
+        return m_XAxis->max();
+    else
+        return 0;
+}
+
+qreal ChartView::XMinRange() const
+{
+    if (m_hasAxis)
+        return m_XAxis->min();
+    else
+        return 0;
+}
+
+void ChartView::setXRange(qreal xmin, qreal xmax, bool nice)
+{
+    if (m_hasAxis) {
+        if (nice) {
+            m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
+            m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
+        } else {
+            m_XAxis->setMin(xmin);
+            m_XAxis->setMax(xmax);
+        }
+        m_XAxis->setTickInterval(ChartTools::CustomCeil(xmax + xmin) / 10.0);
+    }
+}
+
+void ChartView::setXMax(qreal xmax, bool nice)
+{
+    if (m_hasAxis) {
+        if (nice)
+            m_XAxis->setMax(ChartTools::NiceScalingMax(xmax));
+        else
+            m_XAxis->setMax(xmax);
+    }
+}
+
+void ChartView::setXMin(qreal xmin, bool nice)
+{
+    if (m_hasAxis) {
+        if (nice)
+            m_XAxis->setMin(ChartTools::NiceScalingMin(xmin));
+        else
+            m_XAxis->setMin(xmin);
+    }
+}
+
+void ChartView::setYRange(qreal ymin, qreal ymax, bool nice)
+{
+    if (m_hasAxis) {
+        if (nice) {
+            m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
+            m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
+        } else {
+            m_YAxis->setMin(ymin);
+            m_YAxis->setMax(ymax);
+        }
+        m_YAxis->setTickInterval(ChartTools::CustomCeil(ymax + ymin) / 10.0);
+        m_chart_private->updateView(ymin, ymax);
+    }
+}
+
+void ChartView::setYMax(qreal ymax, bool nice)
+{
+    if (m_hasAxis) {
+        if (nice)
+            m_YAxis->setMax(ChartTools::NiceScalingMax(ymax));
+        else
+            m_YAxis->setMax(ymax);
+    }
+}
+
+void ChartView::setYMin(qreal ymin, bool nice)
+{
+    if (m_hasAxis) {
+        if (nice)
+            m_YAxis->setMin(ChartTools::NiceScalingMin(ymin));
+        else
+            m_YAxis->setMin(ymin);
+    }
+}
+
+void ChartView::setName(const QString& name)
+{
+    m_name = name;
+}
+
+void ChartView::setVerticalLineEnabled(bool enabled)
+{
+    m_chart_private->setVerticalLineEnabled(enabled);
+}
+
+void ChartView::setFont(const QString& font)
+{
+    m_font = font;
+}
+
+void ChartView::addVerticalLine(double position_x)
+{
+    m_chart_private->addVerticalLine(position_x);
+}
+
+bool ChartView::removeVerticalLine(double position_x)
+{
+    return m_chart_private->removeVerticalLine(position_x);
+}
+
+void ChartView::removeAllVerticalLines()
+{
+    m_chart_private->removeAllVerticalLines();
+}
+
+void ChartView::setSelectBox(const QPointF& topleft, const QPointF& bottomright)
+{
+    m_chart_private->setSelectBox(topleft, bottomright);
+}
+
+QPointF ChartView::currentMousePosition() const
+{
+    return m_chart_private->currentMousePosition();
 }
 
 #include "chartview.moc"

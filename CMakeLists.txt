@@ -47,6 +47,10 @@ set(cutechart_SRC
     src/chartview.cpp
     src/listchart.cpp
     src/series.cpp
+    # Refactored components (Claude Generated)
+    src/chartconfiguration.cpp
+    src/chartaxismanager.cpp
+    src/chartexporter.cpp
     )
 
 set(example_SRC
