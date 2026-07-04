@@ -1,6 +1,6 @@
 /*
  * CuteCharts - An enhanced chart visualization framework based on Qt Charts
- * Copyright (C) 2019-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2019 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,6 +52,10 @@ std::unique_ptr<SeriesState> SeriesStateFactory::createState(QAbstractSeries* se
 LineSeries::LineSeries()
 {
     // Default values already set in members initialization
+    
+    // Claude Generated: Ensure LineSeries is visible by default
+    // This fixes the issue where series don't appear on initial model load
+    setVisible(true);
 }
 
 void LineSeries::setColor(const QColor& color)
@@ -83,12 +87,14 @@ void LineSeries::updatePen()
 
 void LineSeries::showLine(bool state)
 {
-    setVisible(state);
+    // Claude Generated: Emit signal for ChartWrapper to handle instead of direct setVisible()
+    emit visibilityChangeRequested(state);
 }
 
 void LineSeries::showLine(int state)
 {
-    setVisible(state == Qt::Checked);
+    // Claude Generated: Emit signal for ChartWrapper to handle instead of direct setVisible()  
+    emit visibilityChangeRequested(state == Qt::Checked);
 }
 
 void LineSeries::setName(const QString& str)
@@ -130,6 +136,10 @@ void LineSeriesState::restoreState(QAbstractSeries* series)
 ScatterSeries::ScatterSeries()
 {
     // Default values already set in members initialization
+    
+    // Claude Generated: Ensure ScatterSeries is visible by default
+    // This fixes the issue where series don't appear on initial model load
+    setVisible(true);
 }
 
 void ScatterSeries::setColor(const QColor& color)
@@ -142,8 +152,11 @@ void ScatterSeries::setColor(const QColor& color)
 
 void ScatterSeries::showLine(int state)
 {
-    bool visible = (state == Qt::Checked);
-    setVisible(visible);
+    // Claude Generated: Unified visibility contract with LineSeries - only request
+    // the change; the owning ChartWrapper is the single authority that performs the
+    // actual setVisible(). visibilityChanged() is retained for the ChartWidget
+    // scatter-mirroring wiring that propagates one scatter's state onto another.
+    emit visibilityChangeRequested(state == Qt::Checked);
     emit visibilityChanged(state);
 }
 
@@ -174,6 +187,10 @@ BoxPlotSeries::BoxPlotSeries(const BoxWhisker& boxwhisker)
     : m_boxwhisker(boxwhisker)
 {
     loadBoxWhisker();
+    
+    // Claude Generated: Ensure BoxPlotSeries is visible by default
+    // This fixes the issue where series don't appear on initial model load
+    setVisible(true);
 }
 
 void BoxPlotSeries::loadBoxWhisker()

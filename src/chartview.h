@@ -1,6 +1,6 @@
 /*
  * CuteCharts - An enhanced chart visualization framework based on Qt Charts
- * Copyright (C) 2016-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2016 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@ class QResizeEvent;
 class ChartViewPrivate;
 class ChartConfigDialog;
 class PeakCallOut;
+class ChartExporter; // Claude Generated: export pipeline delegated to this component
+class ChartAxisManager; // Claude Generated: axis scaling delegated to this component
+class ChartConfiguration; // Claude Generated: config state owned by this component
 
 // Forward declare enums (defined in chartviewprivate.h)
 enum class ZoomStrategy;
@@ -292,7 +295,7 @@ public:
      * @brief Get the current chart configuration
      * @return JsonObject containing the configuration
      */
-    QJsonObject currentChartConfig() const { return m_currentChartConfig; }
+    QJsonObject currentChartConfig() const; // Claude Generated: delegates to ChartConfiguration
 
     /**
      * @brief Get the chart configuration
@@ -421,6 +424,9 @@ private:
 
     QAction* m_lock_action;
     ChartViewPrivate* m_chart_private;
+    std::unique_ptr<ChartExporter> m_exporter; // Claude Generated: owns the export/render pipeline
+    std::unique_ptr<ChartAxisManager> m_axisManager; // Claude Generated: owns axis scaling
+    std::unique_ptr<ChartConfiguration> m_configuration; // Claude Generated: owns config + export-preset state
     QPointer<QChart> m_chart;
     QPushButton *m_config, *m_action_button, *m_ignore;
     void setUi();
@@ -436,8 +442,6 @@ private:
 
     QAction *m_configure_series, *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
     QMenu *m_select_strategy, *m_zoom_strategy;
-
-    QJsonObject m_currentChartConfig, m_pendingChartConfig, m_lastChartConfig;
 
     QString m_name, m_last_filename;
     QPointer<QValueAxis> m_XAxis, m_YAxis;
@@ -458,7 +462,6 @@ private:
     QJsonObject getAxisConfig(const QAbstractAxis* axis) const;
     void applyConfigAction();
 
-    QHash<QString, QPair<QString, QJsonObject>> m_stored_exportsettings;
     QMenu* m_exportMenu;
 
 private slots:

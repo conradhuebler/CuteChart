@@ -1,6 +1,6 @@
 /*
  * CuteCharts - Export functionality component
- * Copyright (C) 2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2023 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,6 +54,13 @@ public:
         int scaling = 2;
         bool cropImage = true;
         bool transparentBackground = true;
+        // Claude Generated: flags ported from the monolithic ChartView::exportPNG so the
+        // rendered image matches the original 1:1 (grid removal, axis emphasis, and the
+        // per-series appearance used for publication-quality export).
+        bool noGrid = true;
+        bool emphasizeAxis = true;
+        qreal markerSize = 8.0;
+        qreal lineWidth = 4.0;
         ExportFormat format = ExportFormat::PNG;
         QString fileName;
 

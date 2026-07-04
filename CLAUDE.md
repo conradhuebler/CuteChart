@@ -225,95 +225,43 @@ cmake .. && make -j4
 - **Consider**: std::optional for optional parameters
 - **Modernize**: C++17 features (structured bindings, if constexpr)
 
-## COMPLETED: Refactoring Implementation
+## Refactoring Status (2025 — actual state)
 
-### ✅ ChartView Class Decomposition (Completed)
-**New Architecture Created:**
+The 2023 decomposition created three components but never wired them into the live
+`ChartView`; the monolithic `chartview.cpp` remained the only real code path, and two
+parallel dead files (`chartview_pimpl.*`, `chartview_refactored.h`) were left behind
+(never in the build). The 2025 pass corrected this.
 
-1. **ChartConfiguration** (`src/chartconfiguration.h`)
-   - Centralized configuration management
-   - JSON-based settings with validation
-   - Font configuration handling
-   - Export preset management
-   - Signals for configuration changes
+### ✅ Done
+- **Visibility API unified** — `LineSeries`/`ScatterSeries::showLine()` now both emit
+  `visibilityChangeRequested(bool)`; the owning `ChartWrapper` (SupraFit) is the single
+  authority that applies visibility. `ScatterSeries::visibilityChanged(int)` is retained
+  only for ChartWidget's scatter mirroring (deprecation candidate).
+- **ChartExporter integrated** — `ChartView::exportPNG()` delegates the high-resolution
+  render (grid removal, axis emphasis, transparency, per-series export appearance, crop)
+  to `ChartExporter::createPixmap()`, a faithful 1:1 port of the old inline logic.
+  ChartView keeps only the widget orchestration (resize, callouts, vertical line, cursor).
+- **ChartAxisManager integrated** — `ChartView::spaceScale()` / `qtNiceNumbersScale()`
+  delegate to the manager, which adopts ChartView's default axes via `setAxes()`. Its
+  nice-numbers path was aligned to the monolith (Qt `applyNiceNumbers()`), not `ChartTools`.
+- **ChartConfiguration integrated** — now owns the config state (current/pending/last JSON
+  via raw accessors, plus the export-preset store); ChartView delegates storage and keeps
+  the dialog-driven Apply/Ignore/Revert application logic. Pure state relocation, no
+  behaviour change.
+- **Dead code removed** — `chartview_pimpl.{h,cpp}` and `chartview_refactored.h` deleted
+  (the latter declared a second, conflicting `ChartView`).
+- **Public API preserved** — no external break: `chart()`, `privateView()`,
+  `getChartConfig()`, enums, series ctors/setters all unchanged.
 
-2. **ChartAxisManager** (`src/chartaxismanager.h`)
-   - Dedicated axis operations and scaling
-   - Multiple scaling strategies (Qt nice numbers, space scaling)
-   - Range management with nice number support
-   - Tick interval calculations
-   - Zoom and auto-scale functionality
+### ⏳ Remaining
+- **No unit tests / CMake test target** (see TODO #6 above).
+- ChartConfiguration also exposes validate/merge/font/QSettings helpers that ChartView does
+  not yet use (config *application* still lives in `chartview.cpp`); a future step could move
+  the rich-axis-schema apply/revert protocol into the component too.
 
-3. **ChartExporter** (`src/chartexporter.h`)
-   - Comprehensive export functionality
-   - Multiple format support (PNG, SVG, PDF planned)
-   - Export presets and settings
-   - Series state management during export
-   - Image processing (cropping, transparency)
-
-4. **ChartView Refactored** (`src/chartview_refactored.h`)
-   - Simplified main class focusing on UI coordination
-   - Delegates responsibilities to specialized components
-   - Reduced header dependencies through forward declarations
-   - Clean public API with component access methods
-
-**Benefits Achieved:**
-- **Maintainability**: Clear separation of concerns
-- **Testability**: Each component can be tested independently
-- **Extensibility**: Easy to add new features to specific components
-- **Compilation**: Reduced header dependencies (PIMPL pattern ready)
-- **Code Size**: Original 1115-line monolithic class split into focused components
-
-## ✅ IMPLEMENTATION COMPLETED
-
-**Completed Implementation Files:**
-
-1. **ChartConfiguration** (`src/chartconfiguration.h/.cpp`) ✅
-   - Complete JSON-based configuration management
-   - Font configuration with QSettings persistence
-   - Export preset management with validation
-   - Signal-based configuration change notifications
-   - Claude Generated with full doxygen documentation
-
-2. **ChartAxisManager** (`src/chartaxismanager.h/.cpp`) ✅
-   - Dedicated axis operations and scaling algorithms
-   - Multiple scaling strategies (Qt nice numbers, space scaling)
-   - Range management with nice number support
-   - Zoom functionality and auto-scale strategies
-   - Claude Generated with comprehensive axis management
-
-3. **ChartExporter** (`src/chartexporter.h/.cpp`) ✅
-   - Professional export functionality with state management
-   - PNG export with high-resolution rendering (2x scaling)
-   - Image processing (cropping, transparency)
-   - Series state preservation during export
-   - Export presets with JSON serialization
-   - Claude Generated with production-ready export pipeline
-
-4. **CMakeLists.txt** ✅ - Updated to include new source files
-
-**Implementation Standards Applied:**
-- ✅ Modern Qt6 patterns and C++17 features
-- ✅ Comprehensive error handling and validation
-- ✅ DEBUG_ON preprocessor guards for debugging output
-- ✅ Doxygen-ready documentation for all public methods
-- ✅ "Claude Generated" markers for traceability
-- ✅ Smart pointer usage where appropriate
-- ✅ Signal-based architecture for loose coupling
-
-**Next Steps for Full Integration:**
-1. **Migration Strategy**: Update existing ChartView to use new components
-2. **API Compatibility**: Ensure backward compatibility for existing code
-3. **Testing**: Create unit tests for each component
-4. **Integration Testing**: Test component interaction
-5. **Performance**: Benchmark against original implementation
-
-**Benefits Already Achieved:**
-- **Code Size Reduction**: 1115-line monolithic class → 3 focused components
-- **Maintainability**: Clear separation of concerns enables easier debugging
-- **Testability**: Each component can be unit tested independently
-- **Extensibility**: New features can be added to specific components
-- **Compilation Speed**: Reduced header dependencies through forward declarations
-
-### Note
-  - All enum values: Removed prefixes (Z_Horizontal → Horizontal, S_Horizontal → Horizontal) warum diese umbenennung
+### Architecture (current)
+`ChartView` = UI orchestration + config application, delegating to:
+`ChartConfiguration` (config + export-preset state), `ChartAxisManager` (axis scaling),
+`ChartExporter` (render/export), `ChartViewPrivate` (mouse/zoom/selection). Components are
+held as `std::unique_ptr` members and adopt ChartView's chart/axes rather than creating
+their own.

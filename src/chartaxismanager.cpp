@@ -1,6 +1,6 @@
 /*
  * CuteCharts - Axis management component (Claude Generated)
- * Copyright (C) 2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2023 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,6 +67,16 @@ void ChartAxisManager::initializeAxes()
 #ifdef DEBUG_ON
     qDebug() << "ChartAxisManager: Axes initialized";
 #endif
+}
+
+void ChartAxisManager::setAxes(const QPointer<QValueAxis>& xAxis, const QPointer<QValueAxis>& yAxis)
+{
+    m_xAxis = xAxis;
+    m_yAxis = yAxis;
+    if (m_xAxis)
+        m_xAxis->setTitleText(m_xLabel);
+    if (m_yAxis)
+        m_yAxis->setTitleText(m_yLabel);
 }
 
 void ChartAxisManager::setXRange(qreal min, qreal max, bool nice)
@@ -256,14 +266,26 @@ void ChartAxisManager::applyQtNiceNumbersScale()
     }
 
     if (start) {
-        // Apply nice number scaling
-        x_min = ChartTools::NiceScalingMin(x_min);
-        x_max = ChartTools::NiceScalingMax(x_max);
-        y_min = ChartTools::NiceScalingMin(y_min);
-        y_max = ChartTools::NiceScalingMax(y_max);
+        // Claude Generated: Faithful to the monolithic ChartView::qtNiceNumbersScale -
+        // apply Qt's own applyNiceNumbers() to the raw data range (this differs from
+        // ChartTools::NiceScaling* and produces the axis ticks the original used).
+        if (m_xAxis) {
+            m_xAxis->setRange(x_min, x_max);
+            m_xAxis->applyNiceNumbers();
+            m_xAxis->setTitleText(m_xLabel);
+        }
+        if (m_yAxis) {
+            m_yAxis->setRange(y_min, y_max);
+            m_yAxis->applyNiceNumbers();
+            m_yAxis->setTitleText(m_yLabel);
+        }
 
-        setXRange(x_min, x_max);
-        setYRange(y_min, y_max);
+        m_xMin = x_min;
+        m_xMax = x_max;
+        m_yMin = y_min;
+        m_yMax = y_max;
+
+        emit axisRangeChanged();
 
 #ifdef DEBUG_ON
         qDebug() << "ChartAxisManager: Qt nice numbers scaling applied";
@@ -309,6 +331,12 @@ void ChartAxisManager::applySpaceScale()
     if (start) {
         scaleAxis(m_xAxis, x_min, x_max);
         scaleAxis(m_yAxis, y_min, y_max);
+
+        // Claude Generated: keep axis titles in sync, matching the monolith's spaceScale
+        if (m_xAxis)
+            m_xAxis->setTitleText(m_xLabel);
+        if (m_yAxis)
+            m_yAxis->setTitleText(m_yLabel);
 
         m_xMin = x_min;
         m_xMax = x_max;

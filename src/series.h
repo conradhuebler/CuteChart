@@ -1,6 +1,6 @@
 /*
  * CuteCharts - An enhanced chart visualization framework based on Qt Charts
- * Copyright (C) 2019-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2019 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -165,6 +165,13 @@ signals:
      * @param legend Whether series should show in legend
      */
     void legendChanged(bool legend);
+    
+    /**
+     * @brief Claude Generated: Signal emitted when series visibility should change
+     * This allows ChartWrapper to manage visibility state instead of direct setVisible() calls
+     * @param visible Whether series should be visible
+     */
+    void visibilityChangeRequested(bool visible);
 };
 
 /**
@@ -227,10 +234,25 @@ signals:
     void nameChanged(const QString& str);
 
     /**
-     * @brief Signal emitted when visibility changes
-     * @param state New visibility state
+     * @brief Legacy mirror signal emitted from showLine()
+     *
+     * Kept for the cross-series mirroring wiring in SupraFit's ChartWidget,
+     * where a source scatter's visibility is propagated onto the matching
+     * signal-/error-view scatter. Deprecation candidate once that mirroring
+     * is migrated to visibilityChangeRequested().
+     * @param state New visibility state (Qt::CheckState value)
      */
     void visibilityChanged(int state);
+
+    /**
+     * @brief Claude Generated: Request to change series visibility
+     *
+     * Unified visibility contract shared with LineSeries: showLine() only
+     * emits this request; the owning ChartWrapper performs the actual
+     * setVisible() so visibility stays state-managed in one place.
+     * @param visible Whether series should be visible
+     */
+    void visibilityChangeRequested(bool visible);
 
     /**
      * @brief Signal emitted when legend visibility changes

@@ -1,6 +1,6 @@
 /*
  * CuteCharts - An enhanced chart visualization framework based on Qt Charts
- * Copyright (C) 2016-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2016 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,26 @@
  *
  */
 
+/**
+ * @file chartview.cpp
+ * @brief Main scrollable chart widget (UI orchestration + config application).
+ *
+ * Architecture (Claude Generated, 2025): ChartView owns the QChart, the interaction
+ * layer (ChartViewPrivate) and the tool/config UI, and delegates domain work to
+ * dedicated components held as unique_ptr members:
+ *   - ChartAxisManager : auto-scaling of the chart's axes (spaceScale / nice numbers).
+ *                        Adopts ChartView's default axes via setAxes() in addSeries().
+ *   - ChartExporter    : high-resolution render/export pipeline (ChartView::exportPNG
+ *                        does the widget orchestration and calls createPixmap()).
+ *   - ChartConfiguration : owns the config state (current/pending/last JSON + export
+ *                        presets). ChartView keeps the dialog-driven Apply/Ignore/Revert
+ *                        application logic (applying the config to the live chart/axes).
+ */
+
+#include "chartaxismanager.h"
 #include "chartconfig.h"
+#include "chartconfiguration.h"
+#include "chartexporter.h"
 #include "chartviewprivate.h"
 #include "peakcallout.h"
 #include "series.h"
@@ -63,9 +82,17 @@ ChartView::ChartView()
     , m_pending(false)
     , m_lock_scaling(false)
 {
-    m_currentChartConfig = DefaultConfig;
+    // Claude Generated: config state (current/pending/last + export presets) is owned by
+    // ChartConfiguration; ChartView keeps the dialog-driven application logic.
+    m_configuration = std::make_unique<ChartConfiguration>(this);
+    m_configuration->setCurrentConfig(DefaultConfig);
     m_chart = new QChart();
     m_chart_private = new ChartViewPrivate(m_chart, this);
+    // Claude Generated: export/render pipeline lives in a dedicated component
+    m_exporter = std::make_unique<ChartExporter>(m_chart, this, this);
+    // Claude Generated: axis scaling lives in a dedicated component (adopts the chart's
+    // default axes once they are created in addSeries())
+    m_axisManager = std::make_unique<ChartAxisManager>(m_chart, this);
 
     connect(m_chart_private, &ChartViewPrivate::zoomChanged, this, &ChartView::zoomChanged);
     connect(m_chart_private, &ChartViewPrivate::zoomRect, this, &ChartView::zoomRect);
@@ -297,20 +324,19 @@ void ChartView::setUi()
 
 void ChartView::addExportSetting(const QString& name, const QString& description, const QJsonObject& settings)
 {
-    if (m_stored_exportsettings.contains(name))
+    if (m_configuration->hasExportSetting(name))
         return;
-    m_stored_exportsettings.insert(name, QPair<QString, QJsonObject>(description, settings));
+    m_configuration->addExportSetting(name, description, settings);
     m_exportMenu->clear();
     QAction* defaultAction = new QAction(tr("Default"));
     defaultAction->setData(DefaultConfig);
     m_exportMenu->addAction(defaultAction);
-    QHash<QString, QPair<QString, QJsonObject>>::const_iterator i = m_stored_exportsettings.constBegin();
-    while (i != m_stored_exportsettings.constEnd()) {
+    const auto& stored = m_configuration->exportSettings();
+    for (auto i = stored.constBegin(); i != stored.constEnd(); ++i) {
         QAction* action = new QAction(m_exportMenu);
         action->setText(i.key());
         action->setToolTip(i.value().first);
         action->setData(i.value().second);
-        ++i;
         m_exportMenu->addAction(action);
     }
 }
@@ -396,6 +422,9 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             m_YAxis->setLabelFormat("%2.2f");
 
             m_hasAxis = true;
+            // Claude Generated: hand the freshly created axes to the axis manager so it
+            // scales the very same axes the series are attached to
+            m_axisManager->setAxes(m_XAxis, m_YAxis);
         } else {
             series->attachAxis(m_XAxis);
             series->attachAxis(m_YAxis);
@@ -551,102 +580,41 @@ void ChartView::forceFormatAxis()
 
 void ChartView::spaceScale()
 {
-    qreal x_min = 0;
-    qreal x_max = 0;
-    qreal y_max = 0;
-    qreal y_min = 0;
-    int start = 0;
-    for (QAbstractSeries* series : m_chart->series()) {
-        QPointer<QXYSeries> serie = qobject_cast<QXYSeries*>(series);
-        if (!serie)
-            continue;
-        if (!serie->isVisible())
-            continue;
+    // Claude Generated: delegate the space-scaling computation to ChartAxisManager, which
+    // operates on the same axes (setAxes in addSeries). ChartView keeps only the bookkeeping
+    // (current axis labels, cached ranges, m_pending flag) used by the rest of the class.
+    m_axisManager->setAxisLabels(m_x_axis, m_y_axis);
+    m_axisManager->applySpaceScale();
 
-        QVector<QPointF> points = serie->points();
-        if (start == 0 && points.size()) {
-            y_min = points.first().y();
-            y_max = points.first().y();
-
-            x_min = points.first().x();
-            x_max = points.first().x();
-            start = 1;
-        }
-        for (int i = 0; i < points.size(); ++i) {
-            y_min = qMin(y_min, points[i].y());
-            y_max = qMax(y_max, points[i].y());
-
-            x_min = qMin(x_min, points[i].x());
-            x_max = qMax(x_max, points[i].x());
-        }
-    }
-
-    scaleAxis(m_XAxis, x_min, x_max);
-    scaleAxis(m_YAxis, y_min, y_max);
-
-    m_XAxis->setTitleText(m_x_axis);
-    m_YAxis->setTitleText(m_y_axis);
-
+    const QPair<qreal, qreal> xRange = m_axisManager->getXRange();
+    const QPair<qreal, qreal> yRange = m_axisManager->getYRange();
+    m_xmin = xRange.first;
+    m_xmax = xRange.second;
+    m_ymin = yRange.first;
+    m_ymax = yRange.second;
     m_pending = false;
-    m_ymax = y_max;
-    m_ymin = y_min;
-    m_xmin = x_min;
-    m_xmax = x_max;
 }
 
 void ChartView::qtNiceNumbersScale()
 {
-    qreal x_min = 1e12;
-    qreal x_max = -1 * 1e12;
-    qreal y_max = -1 * 1e12;
-    qreal y_min = 1 * 1e12;
-    int start = 0;
+    // Claude Generated: delegate the Qt-nice-numbers scaling to ChartAxisManager (see spaceScale).
+    m_axisManager->setAxisLabels(m_x_axis, m_y_axis);
+    m_axisManager->applyQtNiceNumbersScale();
 
-    for (QAbstractSeries* series : m_chart->series()) {
-        QPointer<QXYSeries> serie = qobject_cast<QXYSeries*>(series);
-        if (!serie)
-            continue;
-        if (!serie->isVisible())
-            continue;
-
-        QVector<QPointF> points = serie->points();
-        if (start == 0 && points.size()) {
-            y_min = points.first().y();
-            y_max = points.first().y();
-
-            x_min = points.first().x();
-            x_max = points.first().x();
-            start = 1;
-        }
-        for (int i = 0; i < points.size(); ++i) {
-            y_min = qMin(y_min, points[i].y());
-            y_max = qMax(y_max, points[i].y());
-
-            x_min = qMin(x_min, points[i].x());
-            x_max = qMax(x_max, points[i].x());
-        }
-    }
-
-    m_XAxis->setRange(x_min, x_max);
-    m_XAxis->applyNiceNumbers();
-    m_YAxis->setRange(y_min, y_max);
-    m_YAxis->applyNiceNumbers();
-
-    m_XAxis->setTitleText(m_x_axis);
-    m_YAxis->setTitleText(m_y_axis);
-
-    m_ymax = y_max;
-    m_ymin = y_min;
-    m_xmin = x_min;
-    m_xmax = x_max;
+    const QPair<qreal, qreal> xRange = m_axisManager->getXRange();
+    const QPair<qreal, qreal> yRange = m_axisManager->getYRange();
+    m_xmin = xRange.first;
+    m_xmax = xRange.second;
+    m_ymin = yRange.first;
+    m_ymax = yRange.second;
 }
 
 void ChartView::plotSettings()
 {
     if (!connected)
         return;
-    m_currentChartConfig = getChartConfig();
-    m_chartconfigdialog->setChartConfig(m_currentChartConfig);
+    m_configuration->setCurrentConfig(getChartConfig());
+    m_chartconfigdialog->setChartConfig(m_configuration->currentConfig());
     m_chartconfigdialog->show();
     m_chartconfigdialog->raise();
     m_chartconfigdialog->activateWindow();
@@ -697,7 +665,7 @@ void ChartView::updateChartConfig(const QJsonObject& config, bool force)
         m_action_button->setText(tr("Revert"));
         m_action_button->setStyleSheet("QPushButton {background-color: #BF593E; color: black;}");
     } else {
-        m_pendingChartConfig = tmp;
+        m_configuration->setPendingConfig(tmp);
         m_apply_action = 1;
         m_action_button->setText(tr("Apply"));
         m_action_button->setStyleSheet("QPushButton {background-color: #00CC00; color: black;}");
@@ -715,8 +683,8 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
     /* Something very strange is going on here, If I did not copy the const QJsonObject,
        the config get modifed (although const) - GCC and Clang Qt 6.2.3, Manjaro Linux */
     QJsonObject config = chartconfig;
-    m_lastChartConfig = m_currentChartConfig;
-    m_currentChartConfig = chartconfig;
+    m_configuration->setLastConfig(m_configuration->currentConfig());
+    m_configuration->setCurrentConfig(chartconfig);
 
     m_lock_scaling = config["ScalingLocked"].toBool();
     m_x_size = config["xSize"].toDouble();
@@ -797,15 +765,15 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
     m_prevent_notification = true;
 
     QSignalBlocker block(m_chartconfigdialog);
-    m_chartconfigdialog->setChartConfig(m_currentChartConfig);
+    m_chartconfigdialog->setChartConfig(m_configuration->currentConfig());
 }
 
 void ChartView::applyConfigAction()
 {
     if (m_apply_action == -1) {
-        setChartConfig(m_lastChartConfig);
+        setChartConfig(m_configuration->lastConfig());
     } else if (m_apply_action == 1) {
-        setChartConfig(ChartTools::MergeJsonObject(getChartConfig(), m_pendingChartConfig));
+        setChartConfig(ChartTools::MergeJsonObject(getChartConfig(), m_configuration->pendingConfig()));
     }
     m_action_button->setHidden(true);
     m_ignore->setHidden(true);
@@ -873,9 +841,15 @@ QJsonObject ChartView::getAxisConfig(const QAbstractAxis* axis) const
     return config;
 }
 
+QJsonObject ChartView::currentChartConfig() const
+{
+    // Claude Generated: config state lives in ChartConfiguration
+    return m_configuration->currentConfig();
+}
+
 QJsonObject ChartView::getChartConfig() const
 {
-    QJsonObject chartconfig = m_currentChartConfig;
+    QJsonObject chartconfig = m_configuration->currentConfig();
 
     if (m_hasAxis) {
         chartconfig["xAxis"] = getAxisConfig(m_XAxis);
@@ -956,96 +930,20 @@ void ChartView::exportPNG()
     m_chart->scene()->update();
     QApplication::processEvents();
 
-    // Setup for high-resolution rendering
-    int w = m_chart->rect().size().width();
-    int h = m_chart->rect().size().height();
-    QImage image(QSize(m_scaling * w, m_scaling * h), QImage::Format_ARGB32);
-    image.fill(Qt::transparent);
+    // Claude Generated: Delegate the faithful high-resolution render (grid removal, axis
+    // emphasis, transparency, per-series export appearance and cropping) to ChartExporter.
+    // ChartView keeps only the widget-level orchestration (resize, callouts, vertical line).
+    const QJsonObject cfg = m_configuration->currentConfig();
+    ChartExporter::ExportSettings settings;
+    settings.scaling = m_scaling;
+    settings.transparentBackground = cfg["transparentImage"].toBool();
+    settings.cropImage = cfg["cropImage"].toBool();
+    settings.noGrid = cfg["noGrid"].toBool();
+    settings.emphasizeAxis = cfg["emphasizeAxis"].toBool();
+    settings.markerSize = m_markerSize;
+    settings.lineWidth = m_lineWidth;
 
-    QPainter painter(&image);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setRenderHint(QPainter::TextAntialiasing);
-    painter.setRenderHint(QPainter::SmoothPixmapTransform);
-
-    // Cache grid settings
-    bool xGrid = m_XAxis->isGridLineVisible();
-    bool yGrid = m_YAxis->isGridLineVisible();
-
-    // Hide grid lines if configured
-    if (m_currentChartConfig["noGrid"].toBool()) {
-        m_XAxis->setGridLineVisible(false);
-        m_YAxis->setGridLineVisible(false);
-    }
-
-    // Cache and adjust axis appearance
-    QPen xPen = m_XAxis->linePen();
-    QPen yPen = m_YAxis->linePen();
-
-    if (m_currentChartConfig["emphasizeAxis"].toBool()) {
-        QPen emphasizedPen = m_XAxis->linePen();
-        emphasizedPen.setColor(Qt::black);
-        emphasizedPen.setWidth(2);
-        m_XAxis->setLinePen(emphasizedPen);
-        m_YAxis->setLinePen(emphasizedPen);
-    }
-
-    // Handle background transparency
-    QBrush brush_backup = m_chart->backgroundBrush();
-    if (m_currentChartConfig["transparentImage"].toBool()) {
-        QBrush transparentBrush;
-        transparentBrush.setColor(Qt::transparent);
-        m_chart->setBackgroundBrush(transparentBrush);
-    }
-
-    // Save series states using the state pattern
-    std::vector<std::pair<QAbstractSeries*, std::unique_ptr<SeriesState>>> seriesStates;
-
-    for (QAbstractSeries* serie : m_chart->series()) {
-        auto state = SeriesStateFactory::createState(serie);
-        if (state) {
-            state->saveState(serie);
-
-            // Apply export-specific settings
-            if (auto scatter = qobject_cast<QScatterSeries*>(serie)) {
-                scatter->setMarkerSize(m_markerSize);
-                scatter->setBorderColor(Qt::transparent);
-            } else if (auto line = qobject_cast<LineSeries*>(serie)) {
-                line->setLineWidth(m_lineWidth);
-            }
-
-            // Disable OpenGL for export
-            serie->setUseOpenGL(false);
-
-            seriesStates.push_back({ serie, std::move(state) });
-        }
-    }
-
-    // Render chart to image
-    m_chart->scene()->render(&painter, QRectF(0, 0, m_scaling * w, m_scaling * h), m_chart->rect());
-
-    // Process the image as needed
-    QPixmap pixmap;
-
-    if (m_currentChartConfig["cropImage"].toBool()) {
-        QRect region = QRegion(QBitmap::fromImage(image.createMaskFromColor(0x00000000))).boundingRect();
-        pixmap = QPixmap::fromImage(image.copy(region));
-    } else {
-        pixmap = QPixmap::fromImage(image);
-    }
-
-    // Restore all series states
-    for (auto& [series, state] : seriesStates) {
-        state->restoreState(series);
-    }
-
-    // Restore background
-    m_chart->setBackgroundBrush(brush_backup);
-
-    // Restore axis appearance
-    m_XAxis->setGridLineVisible(xGrid);
-    m_YAxis->setGridLineVisible(yGrid);
-    m_XAxis->setLinePen(xPen);
-    m_YAxis->setLinePen(yPen);
+    QPixmap pixmap = m_exporter->createPixmap(settings);
 
     // Restore widget state
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -1106,11 +1004,11 @@ void ChartView::loadFontConfig()
         return;
     auto content = file.readAll();
     QJsonDocument doc = QJsonDocument::fromJson(content);
-    // m_currentChartConfig = doc.object();
+    // m_configuration->setCurrentConfig(doc.object());
     setFontConfig(doc.object());
     QFileInfo info(str);
-    addExportSetting(info.baseName(), str, m_currentChartConfig);
-    emit exportSettingsFileAdded(info.baseName(), str, m_currentChartConfig);
+    addExportSetting(info.baseName(), str, m_configuration->currentConfig());
+    emit exportSettingsFileAdded(info.baseName(), str, m_configuration->currentConfig());
     m_chartconfigdialog->setChartConfig(currentChartConfig());
 }
 

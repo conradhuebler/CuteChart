@@ -1,6 +1,6 @@
 /*
  * CuteCharts - Export functionality component (Claude Generated)
- * Copyright (C) 2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2023 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,9 +19,15 @@
 #include <QtCore/QDebug>
 #include <QtCore/QJsonDocument>
 
+#include <QtGui/QBitmap>
 #include <QtGui/QCursor>
 #include <QtGui/QPainter>
 #include <QtGui/QPixmap>
+#include <QtGui/QRegion>
+
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QFileDialog>
@@ -78,23 +84,13 @@ bool ChartExporter::exportWithSettings(const ExportSettings& settings)
     QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
 
     try {
-        // Save series states before applying export overrides
-        auto savedStates = saveSeriesStates();
-
-        // Apply export-specific series overrides
-        applySeriesOverrides(settings.seriesOverrides);
-
-        // Create the pixmap
+        // Claude Generated: createPixmap() now performs the full faithful pipeline
+        // (series-state save/override/restore, grid/axis handling and cropping), so the
+        // standalone export path simply renders and saves.
         QPixmap pixmap = createPixmap(settings);
 
-        // Process the image
-        pixmap = processImage(pixmap, settings);
-
-        // Restore series states
-        restoreSeriesStates(savedStates);
-
         // Save the image
-        bool success = pixmap.save(fileName);
+        bool success = !pixmap.isNull() && pixmap.save(fileName);
 
         if (success) {
             m_lastFileName = fileName;
@@ -183,53 +179,107 @@ QPixmap ChartExporter::createPixmap(const ExportSettings& settings) const
         return QPixmap();
     }
 
-    // Save current chart state
-    QChart::AnimationOptions originalAnimation = m_chart->animationOptions();
-    m_chart->setAnimationOptions(QChart::NoAnimation);
+    // Claude Generated: Faithful port of the monolithic ChartView::exportPNG render core.
+    // The caller (ChartView) is responsible for the surrounding widget orchestration
+    // (resize to target size, callouts, vertical line, cursor); here we only produce the
+    // high-resolution, optionally cropped pixmap so the output is pixel-identical to the
+    // original implementation. The chart is expected to be sized to the export dimensions
+    // already, hence the render source is taken from m_chart->rect().
+    const int w = m_chart->rect().size().width();
+    const int h = m_chart->rect().size().height();
 
-    // Prepare chart for rendering
-    m_chart->scene()->update();
-    QApplication::processEvents();
-
-    // Create high-resolution image
-    int w = settings.width;
-    int h = settings.height;
     QImage image(QSize(settings.scaling * w, settings.scaling * h), QImage::Format_ARGB32);
+    image.fill(Qt::transparent);
 
-    if (settings.transparentBackground) {
-        image.fill(Qt::transparent);
-    } else {
-        image.fill(Qt::white);
-    }
-
-    // Setup painter with antialiasing
     QPainter painter(&image);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::TextAntialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
+    QValueAxis* xAxis = m_chart->axes(Qt::Horizontal).isEmpty()
+        ? nullptr
+        : qobject_cast<QValueAxis*>(m_chart->axes(Qt::Horizontal).first());
+    QValueAxis* yAxis = m_chart->axes(Qt::Vertical).isEmpty()
+        ? nullptr
+        : qobject_cast<QValueAxis*>(m_chart->axes(Qt::Vertical).first());
+
+    // Cache and optionally hide grid lines
+    const bool xGrid = xAxis ? xAxis->isGridLineVisible() : true;
+    const bool yGrid = yAxis ? yAxis->isGridLineVisible() : true;
+    if (settings.noGrid) {
+        if (xAxis)
+            xAxis->setGridLineVisible(false);
+        if (yAxis)
+            yAxis->setGridLineVisible(false);
+    }
+
+    // Cache and optionally emphasize the axis lines
+    const QPen xPen = xAxis ? xAxis->linePen() : QPen();
+    const QPen yPen = yAxis ? yAxis->linePen() : QPen();
+    if (settings.emphasizeAxis && xAxis && yAxis) {
+        QPen emphasizedPen = xAxis->linePen();
+        emphasizedPen.setColor(Qt::black);
+        emphasizedPen.setWidth(2);
+        xAxis->setLinePen(emphasizedPen);
+        yAxis->setLinePen(emphasizedPen);
+    }
+
     // Handle background transparency
-    QBrush originalBrush = m_chart->backgroundBrush();
+    const QBrush brushBackup = m_chart->backgroundBrush();
     if (settings.transparentBackground) {
         QBrush transparentBrush;
         transparentBrush.setColor(Qt::transparent);
         m_chart->setBackgroundBrush(transparentBrush);
     }
 
-    // Render chart to image
-    QRectF sourceRect = m_chart->rect();
-    QRectF targetRect(0, 0, settings.scaling * w, settings.scaling * h);
-    m_chart->scene()->render(&painter, targetRect, sourceRect);
+    // Save series states via the state pattern and apply export-specific appearance
+    std::vector<std::pair<QAbstractSeries*, std::unique_ptr<SeriesState>>> seriesStates;
+    for (QAbstractSeries* serie : m_chart->series()) {
+        auto state = SeriesStateFactory::createState(serie);
+        if (state) {
+            state->saveState(serie);
 
-    // Restore chart state
-    m_chart->setBackgroundBrush(originalBrush);
-    m_chart->setAnimationOptions(originalAnimation);
+            if (auto* scatter = qobject_cast<QScatterSeries*>(serie)) {
+                scatter->setMarkerSize(settings.markerSize);
+                scatter->setBorderColor(Qt::transparent);
+            } else if (auto* line = qobject_cast<LineSeries*>(serie)) {
+                line->setLineWidth(settings.lineWidth);
+            }
+
+            serie->setUseOpenGL(false);
+            seriesStates.push_back({ serie, std::move(state) });
+        }
+    }
+
+    m_chart->scene()->render(&painter, QRectF(0, 0, settings.scaling * w, settings.scaling * h), m_chart->rect());
+
+    QPixmap pixmap;
+    if (settings.cropImage) {
+        const QRect region = QRegion(QBitmap::fromImage(image.createMaskFromColor(0x00000000))).boundingRect();
+        pixmap = QPixmap::fromImage(image.copy(region));
+    } else {
+        pixmap = QPixmap::fromImage(image);
+    }
+
+    // Restore every mutated state
+    for (auto& [series, state] : seriesStates)
+        state->restoreState(series);
+
+    m_chart->setBackgroundBrush(brushBackup);
+    if (xAxis)
+        xAxis->setGridLineVisible(xGrid);
+    if (yAxis)
+        yAxis->setGridLineVisible(yGrid);
+    if (xAxis)
+        xAxis->setLinePen(xPen);
+    if (yAxis)
+        yAxis->setLinePen(yPen);
 
 #ifdef DEBUG_ON
     qDebug() << "ChartExporter: Pixmap created" << w << "x" << h << "scaling:" << settings.scaling;
 #endif
 
-    return QPixmap::fromImage(image);
+    return pixmap;
 }
 
 void ChartExporter::showExportDialog()

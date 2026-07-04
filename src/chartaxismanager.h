@@ -1,6 +1,6 @@
 /*
  * CuteCharts - Axis management component
- * Copyright (C) 2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2023 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,17 @@ public:
      * @brief Initialize axes for the chart
      */
     void initializeAxes();
+
+    /**
+     * @brief Claude Generated: Adopt externally created axes instead of creating own
+     *
+     * ChartView creates its axes via QChart::createDefaultAxes() so that series get the
+     * default attachment behaviour. This lets the manager operate on exactly those axes
+     * (single source of truth) rather than a second, detached pair.
+     * @param xAxis Existing horizontal value axis
+     * @param yAxis Existing vertical value axis
+     */
+    void setAxes(const QPointer<QValueAxis>& xAxis, const QPointer<QValueAxis>& yAxis);
 
     /**
      * @brief Get X axis

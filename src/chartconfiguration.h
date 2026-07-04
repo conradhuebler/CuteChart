@@ -41,6 +41,25 @@ public:
     QJsonObject currentConfig() const { return m_currentConfig; }
 
     /**
+     * @brief Claude Generated: Raw state accessors used by ChartView
+     *
+     * ChartView keeps the dialog-driven application logic (Apply/Ignore/Revert, applying
+     * the config to the live chart/axes/series) but delegates ownership of the raw config
+     * state to this component. These accessors move the state without altering behaviour;
+     * they intentionally bypass the validate/merge/signal machinery above.
+     */
+    void setCurrentConfig(const QJsonObject& config) { m_currentConfig = config; }
+    QJsonObject pendingConfig() const { return m_pendingConfig; }
+    void setPendingConfig(const QJsonObject& config) { m_pendingConfig = config; }
+    QJsonObject lastConfig() const { return m_lastConfig; }
+    void setLastConfig(const QJsonObject& config) { m_lastConfig = config; }
+
+    /** @brief Claude Generated: whether a named export preset already exists */
+    bool hasExportSetting(const QString& name) const { return m_exportSettings.contains(name); }
+    /** @brief Claude Generated: all stored export presets (name -> {description, settings}) */
+    const QHash<QString, QPair<QString, QJsonObject>>& exportSettings() const { return m_exportSettings; }
+
+    /**
      * @brief Get current font configuration
      * @return Current font settings as JSON object
      */
