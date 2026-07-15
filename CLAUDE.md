@@ -233,6 +233,10 @@ parallel dead files (`chartview_pimpl.*`, `chartview_refactored.h`) were left be
 (never in the build). The 2025 pass corrected this.
 
 ### ✅ Done
+- **Axis-rescale "freeze" fixed (2026-07-14)** — `qtNiceNumbersScale()` never cleared `m_pending`
+  (only `spaceScale()` did), so after any QtNiceNumbers pass the guarded `formatAxis()` latched into
+  a permanent no-op and plots stopped rescaling until a new series forced `forceFormatAxis()`.
+  `m_pending` is now cleared once at the end of `forceFormatAxis()` (strategy-independent).
 - **Visibility API unified** — `LineSeries`/`ScatterSeries::showLine()` now both emit
   `visibilityChangeRequested(bool)`; the owning `ChartWrapper` (SupraFit) is the single
   authority that applies visibility. `ScatterSeries::visibilityChanged(int)` is retained

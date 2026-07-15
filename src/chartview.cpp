@@ -1,6 +1,6 @@
 /*
  * CuteCharts - An enhanced chart visualization framework based on Qt Charts
- * Copyright (C) 2016 - 2025 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2016 - 2026 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -576,6 +576,13 @@ void ChartView::forceFormatAxis()
         m_chartconfigdialog->setChartConfig(getChartConfig());
 
     m_chart_private->updateZoom();
+
+    // Claude Generated: clear the re-entrancy guard here, strategy-independent, so both
+    // spaceScale() and qtNiceNumbersScale() leave it reset. Previously only spaceScale()
+    // reset m_pending; after any QtNiceNumbers pass (e.g. the "Autoscale Min/Max" menu) it
+    // latched true and formatAxis() became a permanent no-op — the chart appeared "frozen"
+    // (stale axes, fit curve out of range) until opening a new model forced a rescale.
+    m_pending = false;
 }
 
 void ChartView::spaceScale()
@@ -592,7 +599,7 @@ void ChartView::spaceScale()
     m_xmax = xRange.second;
     m_ymin = yRange.first;
     m_ymax = yRange.second;
-    m_pending = false;
+    // m_pending is cleared centrally in forceFormatAxis() (its sole caller).
 }
 
 void ChartView::qtNiceNumbersScale()
