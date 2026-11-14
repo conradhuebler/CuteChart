@@ -367,6 +367,9 @@ public slots:
      */
     void formatAxis();
 
+    /// Claude Generated: (re)arrange peak callouts without overlap, deferred and coalesced
+    void scheduleCalloutArrangement();
+
     /**
      * @brief Apply QtNiceNumbers scaling to axes
      */
@@ -439,6 +442,7 @@ private:
     qreal m_ymax, m_ymin, m_xmin, m_xmax;
     QVector<QPointer<QAbstractSeries>> m_series;
     QVector<QPointer<PeakCallOut>> m_peak_anno;
+    bool m_callout_pending = false;
 
     QAction *m_configure_series, *m_select_none, *m_select_horizonal, *m_select_vertical, *m_select_rectangular, *m_zoom_none, *m_zoom_horizonal, *m_zoom_vertical, *m_zoom_rectangular;
     QMenu *m_select_strategy, *m_zoom_strategy;

@@ -38,6 +38,8 @@
 #include "chartconfiguration.h"
 #include "chartexporter.h"
 #include "chartviewprivate.h"
+#include <QtCore/QTimer>
+
 #include "peakcallout.h"
 #include "series.h"
 #include "tools.h"
@@ -387,11 +389,15 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             if (serie->points().size() > 5e3)
                 serie->setUseOpenGL(true);
             if (callout) {
-                qreal x = 0;
-                for (const QPointF& point : serie->points())
-                    x += point.x();
-                x /= double(serie->points().size());
-                QPointF point(x, 1.5);
+                // Claude Generated: anchor the callout at the peak (highest point) of the series
+                QPointF point(0, 0);
+                const QList<QPointF> pts = serie->points();
+                if (!pts.isEmpty()) {
+                    point = pts.first();
+                    for (const QPointF& p : pts)
+                        if (p.y() > point.y())
+                            point = p;
+                }
 
                 QPointer<PeakCallOut> annotation = new PeakCallOut(m_chart);
                 annotation->setSeries(series);
@@ -410,6 +416,7 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
                 });
                 annotation->setColor(serie->color());
                 m_peak_anno.append(annotation);
+                scheduleCalloutArrangement();
             }
         }
         m_chart->addSeries(series);
@@ -425,6 +432,9 @@ void ChartView::addSeries(QAbstractSeries* series, bool callout)
             // Claude Generated: hand the freshly created axes to the axis manager so it
             // scales the very same axes the series are attached to
             m_axisManager->setAxes(m_XAxis, m_YAxis);
+            connect(m_XAxis, &QValueAxis::rangeChanged, this, &ChartView::scheduleCalloutArrangement);
+            connect(m_YAxis, &QValueAxis::rangeChanged, this, &ChartView::scheduleCalloutArrangement);
+            connect(m_chart, &QChart::plotAreaChanged, this, &ChartView::scheduleCalloutArrangement);
         } else {
             series->attachAxis(m_XAxis);
             series->attachAxis(m_YAxis);
@@ -766,6 +776,7 @@ void ChartView::setChartConfig(const QJsonObject& chartconfig)
         call->setVisible(config["Annotation"].toBool());
         call->setFont(config["KeyFont"].toString());
     }
+    scheduleCalloutArrangement();
     setFontConfig(config);
     m_apply_action = 1;
     m_action_button->setHidden(false);
@@ -980,6 +991,23 @@ void ChartView::resizeEvent(QResizeEvent* event)
 {
     event->accept();
     m_centralWidget->resize(0.99 * size());
+    scheduleCalloutArrangement();
+}
+
+// Claude Generated: coalesce many range/plot-area signals into one overlap-free arrangement
+void ChartView::scheduleCalloutArrangement()
+{
+    if (m_callout_pending || m_peak_anno.isEmpty())
+        return;
+    m_callout_pending = true;
+    QTimer::singleShot(0, this, [this]() {
+        m_callout_pending = false;
+        QList<PeakCallOut*> list;
+        for (const QPointer<PeakCallOut>& c : m_peak_anno)
+            if (c)
+                list << c;
+        PeakCallOut::arrange(list);
+    });
 }
 
 void ChartView::saveFontConfig()

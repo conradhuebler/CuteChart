@@ -88,6 +88,28 @@ public:
      */
     void update();
 
+    /**
+     * @brief Place the callout at its offset from the anchor (Claude Generated)
+     *
+     * Converts the anchor from data to pixel coordinates; call after axis ranges
+     * or plot area changed. Callouts the user dragged keep their own offset.
+     */
+    void reposition();
+
+    /**
+     * @brief Arrange several callouts so their cards do not overlap (Claude Generated)
+     *
+     * Cards are stacked in levels above their anchors (sorted by anchor x), greedy and
+     * horizontally clamped to the chart. Callouts moved by the user are left alone but
+     * still treated as obstacles.
+     */
+    static void arrange(const QList<PeakCallOut*>& callouts);
+
+    /// Card rectangle in parent (chart) coordinates
+    QRectF cardRect() const;
+    QPointF anchorPosition() const;
+    bool userMoved() const { return m_userMoved; }
+
 public slots:
     /**
      * @brief Set the color of the callout text
@@ -98,17 +120,17 @@ public slots:
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent* event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) override;
+    QPainterPath shape() const override;
 
 private:
     QString m_text; ///< The plain text content
-    QString m_htmlText; ///< The HTML-formatted text content
-    QRectF m_textRect; ///< Rectangle for the text portion
-    QRectF m_rect; ///< Total rectangle including text and anchor line
-    QPointF m_anchor; ///< The point this callout is anchored to
-    QPointF m_textPosition; ///< The position of the text relative to anchor
+    QPointF m_anchor; ///< Anchor in data coordinates (the peak)
+    QPointF m_offset = QPointF(0, -28); ///< Bottom centre of the card relative to the anchor in pixels
     QPointer<QChart> m_chart; ///< The chart this callout belongs to
-    bool m_rotated = false; ///< Whether this callout is rotated 90 degrees
     QColor m_color; ///< The color of the callout text
+    bool m_userMoved = false; ///< Offset was set by dragging, arrange() keeps it
+    bool m_dragging = false;
 
     QPointer<QAbstractSeries> m_series; ///< The series this callout is associated with
 };

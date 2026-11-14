@@ -17,12 +17,15 @@
  */
 
 #include <QtCore/QDebug>
+
+#include <algorithm>
 #include <QtCore/QPointer>
 
 #include <QtGui/QFontMetrics>
 #include <QtGui/QMouseEvent>
 #include <QtGui/QPainter>
 #include <QtGui/QTextDocument>
+#include <QtWidgets/QStyleOptionGraphicsItem>
 
 #include <QtWidgets/QGraphicsSceneMouseEvent>
 
@@ -36,61 +39,56 @@ PeakCallOut::PeakCallOut(QPointer<QChart> chart)
     , m_chart(chart)
     , m_color(Qt::black)
 {
-    // Make callout interactive
     setFlag(QGraphicsItem::ItemIsMovable);
     setFlag(QGraphicsItem::ItemIsSelectable);
-    setFlag(QGraphicsItem::ItemSendsGeometryChanges);
     setCursor(Qt::OpenHandCursor);
+    document()->setDocumentMargin(3);
+}
+
+QPointF PeakCallOut::anchorPosition() const
+{
+    return m_chart ? m_chart->mapToPosition(m_anchor) : QPointF();
+}
+
+QRectF PeakCallOut::cardRect() const
+{
+    return QRectF(pos(), QGraphicsTextItem::boundingRect().size());
+}
+
+QPainterPath PeakCallOut::shape() const
+{
+    QPainterPath path;
+    path.addRect(QGraphicsTextItem::boundingRect());
+    return path;
 }
 
 QRectF PeakCallOut::boundingRect() const
 {
-    QPointF anchor = mapFromParent(m_chart->mapToPosition(m_anchor));
-    QRectF rect;
-    rect.setLeft(qMin(m_rect.left(), anchor.x()));
-    rect.setRight(qMax(m_rect.right(), anchor.x()));
-    rect.setTop(qMin(m_rect.top(), anchor.y()));
-    rect.setBottom(qMax(m_rect.bottom(), anchor.y()));
-
-    // Add some margin for the anchor line
-    rect.adjust(-5, -5, 5, 5);
-
-    return rect;
+    // Card plus the connection line to the anchor
+    const QRectF card = QGraphicsTextItem::boundingRect();
+    const QPointF anchor = mapFromParent(anchorPosition());
+    return card.united(QRectF(anchor, QSizeF(0, 0))).adjusted(-5, -5, 5, 5);
 }
 
 void PeakCallOut::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
-    // Calculate positioning based on available space
-    int width = 40;
-    int height = -100;
+    painter->setRenderHint(QPainter::Antialiasing);
+    const QRectF card = QGraphicsTextItem::boundingRect();
+    const QPointF anchor = mapFromParent(anchorPosition());
 
-    if (!m_rotated) {
-        QFontMetrics fm = painter->fontMetrics();
-        width = fm.horizontalAdvance(m_text) - fm.horizontalAdvance(m_text) / 2;
-        height = -50;
-    }
+    // Thin connection from the card to the peak, ending in a small dot
+    painter->setPen(QPen(m_color, 1.0));
+    painter->drawLine(card.center(), anchor);
+    painter->setBrush(m_color);
+    painter->drawEllipse(anchor, 2.5, 2.5);
 
-    // Position callout relative to anchor point
-    QPointF anchorPos = m_chart->mapToPosition(m_anchor);
-    qreal x = anchorPos.x() - width;
-    qreal y = anchorPos.y() - height - 50;
-    setPos(x, y);
+    painter->setPen(QPen(m_color, 1));
+    painter->setBrush(QBrush(QColor(250, 250, 250, 235)));
+    painter->drawRoundedRect(card, 4, 4);
 
-    // Draw connection line to anchor point
-    painter->setPen(QPen(m_color, 1.5, Qt::DashLine));
-    painter->drawLine(QPointF(width, height + 40), mapFromParent(anchorPos));
-
-    // Draw text with background
-    painter->setPen(QPen(QColor(60, 60, 60), 1));
-    painter->setBrush(QBrush(QColor(240, 240, 240, 220)));
-    painter->drawRoundedRect(boundingRect().adjusted(5, 5, -5, -5), 5, 5);
-
-    // Let the base class handle text rendering
-    QGraphicsTextItem::paint(painter, option, widget);
-
-    // Hide callout if associated series is hidden
-    if (m_series)
-        setVisible(m_series->isVisible());
+    QStyleOptionGraphicsItem opt(*option);
+    opt.state &= ~QStyle::State_Selected; // no dotted selection frame
+    QGraphicsTextItem::paint(painter, &opt, widget);
 }
 
 void PeakCallOut::setColor(const QColor& color)
@@ -102,17 +100,26 @@ void PeakCallOut::setColor(const QColor& color)
 void PeakCallOut::mousePressEvent(QGraphicsSceneMouseEvent* event)
 {
     setCursor(Qt::ClosedHandCursor);
+    m_dragging = true;
+    QGraphicsTextItem::mousePressEvent(event);
     event->accept();
 }
 
 void PeakCallOut::mouseMoveEvent(QGraphicsSceneMouseEvent* event)
 {
-    if (event->buttons() & Qt::LeftButton) {
-        setPos(mapToParent(event->pos() - event->buttonDownPos(Qt::LeftButton)));
-        event->accept();
-    } else {
-        event->ignore();
-    }
+    QGraphicsTextItem::mouseMoveEvent(event);
+    // Remember the dragged position as offset to the anchor so it follows zoom/pan
+    const QSizeF s = QGraphicsTextItem::boundingRect().size();
+    prepareGeometryChange();
+    m_offset = pos() + QPointF(s.width() / 2, s.height()) - anchorPosition();
+    m_userMoved = true;
+}
+
+void PeakCallOut::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
+{
+    m_dragging = false;
+    setCursor(Qt::OpenHandCursor);
+    QGraphicsTextItem::mouseReleaseEvent(event);
 }
 
 void PeakCallOut::setText(const QString& text, const QPointF& point)
@@ -124,28 +131,71 @@ void PeakCallOut::setText(const QString& text, const QPointF& point)
 
 void PeakCallOut::update()
 {
-    m_htmlText = tr("<h4><font color='%2'>%1</font></h4>").arg(m_text).arg(m_color.name());
-    setHtml(m_htmlText);
-
-    QFontMetrics metrics(font());
-    QTextDocument doc;
-    doc.setHtml(m_htmlText);
-    m_textRect = metrics.boundingRect(QRect(0, 0, 300, 300), Qt::AlignLeft, m_htmlText);
+    // Without size-hints from HTML tags: the document knows the real extent
+    setHtml(QString("<span style='color:%2; font-weight:bold'>%1</span>").arg(m_text, m_color.name()));
     prepareGeometryChange();
-    m_rect = m_textRect.adjusted(-5, -5, 5, 5);
+    reposition();
+    QGraphicsTextItem::update();
+}
 
-    // Rotate text for better readability with longer texts
-    if (doc.size().width() > 60) {
-        setRotation(-90);
-        m_rotated = true;
-    } else {
-        setRotation(0);
-        m_rotated = false;
-    }
+void PeakCallOut::reposition()
+{
+    if (!m_chart || m_dragging)
+        return;
+    const QSizeF s = QGraphicsTextItem::boundingRect().size();
+    prepareGeometryChange();
+    setPos(anchorPosition() + m_offset - QPointF(s.width() / 2, s.height()));
 }
 
 void PeakCallOut::setAnchor(QPointF point)
 {
     m_anchor = point;
     update();
+}
+
+void PeakCallOut::arrange(const QList<PeakCallOut*>& callouts)
+{
+    QList<PeakCallOut*> free;
+    QList<QRectF> placed;
+    for (PeakCallOut* c : callouts) {
+        if (!c || !c->isVisible() || !c->m_chart)
+            continue;
+        c->reposition();
+        if (c->m_userMoved)
+            placed << c->cardRect();
+        else
+            free << c;
+    }
+    if (free.isEmpty())
+        return;
+
+    std::sort(free.begin(), free.end(), [](PeakCallOut* a, PeakCallOut* b) {
+        return a->anchorPosition().x() < b->anchorPosition().x();
+    });
+
+    const QRectF bounds = free.first()->m_chart->rect();
+    const qreal gap = 24, spacing = 4;
+    for (PeakCallOut* c : free) {
+        const QSizeF s = c->QGraphicsTextItem::boundingRect().size();
+        const QPointF a = c->anchorPosition();
+        qreal x = qBound(bounds.left() + 2, a.x() - s.width() / 2, qMax(bounds.left() + 2, bounds.right() - s.width() - 2));
+        QRectF r;
+        qreal y = a.y() - gap - s.height();
+        for (int level = 0; level < 40; ++level) {
+            r = QRectF(QPointF(x, y), s);
+            bool hit = false;
+            for (const QRectF& p : placed)
+                if (r.adjusted(-spacing, -spacing, spacing, spacing).intersects(p)) {
+                    hit = true;
+                    y = qMin(y, p.top() - spacing - s.height()); // stack above the blocker
+                    break;
+                }
+            if (!hit)
+                break;
+        }
+        placed << r;
+        c->prepareGeometryChange();
+        c->m_offset = QPointF(r.center().x() - a.x(), r.bottom() - a.y());
+        c->setPos(r.topLeft());
+    }
 }
