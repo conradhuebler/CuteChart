@@ -1,6 +1,6 @@
 /*
  * CuteCharts - An enhanced chart visualization framework based on Qt Charts
- * Copyright (C) 2020-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2020-2026 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -247,6 +247,12 @@ private:
     QPointF mapToPoint(const QPointF& point) const;
 
     /**
+     * @brief Remember the position of a mouse event (chart coordinates) for the zoom and selection rectangles
+     * @param event Mouse event (press, move or release)
+     */
+    void trackMouse(const QMouseEvent* event);
+
+    /**
      * @brief Update the corner points of the chart view
      */
     void updateCorner();
@@ -271,9 +277,10 @@ private:
     // Rectangle selection boundaries
     QPointF m_border_start, m_border_end;
     QPointF m_rect_start, m_upperleft, m_lowerright;
+    QPointF m_last_mouse_position; ///< last press/move/release position in chart coordinates
 
     // Current axis limits
-    double m_x_min, m_x_max, m_y_min, m_y_max;
+    double m_x_min = 0, m_x_max = 0, m_y_min = 0, m_y_max = 0;
 
     // Precision for number display
     int m_horizontal_lines_prec = 2;

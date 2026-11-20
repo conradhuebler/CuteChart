@@ -1,6 +1,6 @@
 /*
  * CuteCharts - An enhanced chart visualization framework based on Qt Charts
- * Copyright (C) 2020-2023 Conrad Hübler <Conrad.Huebler@gmx.net>
+ * Copyright (C) 2020-2026 Conrad Hübler <Conrad.Huebler@gmx.net>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -145,16 +145,32 @@ QPointF ChartViewPrivate::mapToPoint(QMouseEvent* event) const
     return mapToPoint(QPointF(event->x(), event->y()));
 }
 
+/*! \brief Restricts a point of a zoom or selection rectangle to the strategy of the running operation:
+ * a horizontal rectangle spans the plot height (y of the plot corners), a vertical one the plot width.
+ * A running selection (right button) follows the selection strategy, a running zoom box (left button)
+ * the zoom strategy; each is independent of the other (a horizontal selection does not force a
+ * horizontal zoom). Without a running operation either strategy restricts, as before. */
 QPointF ChartViewPrivate::mapToPoint(const QPointF& point) const
 {
     QPointF inPoint(point);
-    if ((currentZoomStrategy() == ZoomStrategy::Horizontal) || (currentSelectStrategy() == SelectStrategy::Horizontal)) {
+    bool horizontal = false, vertical = false;
+    if (m_select_pending) {
+        horizontal = currentSelectStrategy() == SelectStrategy::Horizontal;
+        vertical = currentSelectStrategy() == SelectStrategy::Vertical;
+    } else if (m_zoom_pending) {
+        horizontal = currentZoomStrategy() == ZoomStrategy::Horizontal;
+        vertical = currentZoomStrategy() == ZoomStrategy::Vertical;
+    } else {
+        horizontal = (currentZoomStrategy() == ZoomStrategy::Horizontal) || (currentSelectStrategy() == SelectStrategy::Horizontal);
+        vertical = !horizontal && ((currentZoomStrategy() == ZoomStrategy::Vertical) || (currentSelectStrategy() == SelectStrategy::Vertical));
+    }
+    if (horizontal) {
         if (!m_box_started)
             inPoint.setY(m_upperleft.y());
         else
             inPoint.setY(m_lowerright.y());
 
-    } else if ((currentZoomStrategy() == ZoomStrategy::Vertical) || (currentSelectStrategy() == SelectStrategy::Vertical)) {
+    } else if (vertical) {
         if (!m_box_started)
             inPoint.setX(m_upperleft.x());
         else
@@ -162,6 +178,13 @@ QPointF ChartViewPrivate::mapToPoint(const QPointF& point) const
     }
 
     return inPoint;
+}
+
+/*! \brief Remembers the position of a mouse event in chart coordinates; the rectangles of zoom and
+ * selection are built from it (not from QCursor::pos(), which a synthetic event does not move). Claude Generated */
+void ChartViewPrivate::trackMouse(const QMouseEvent* event)
+{
+    m_last_mouse_position = chart()->mapFromScene(mapToScene(event->position().toPoint()));
 }
 
 void ChartViewPrivate::setZoom(qreal x_min, qreal x_max, qreal y_min, qreal y_max)
@@ -199,7 +222,8 @@ void ChartViewPrivate::setVerticalLineEnabled(bool enabled)
 
 void ChartViewPrivate::rectangleStart()
 {
-    QPointF inPoint = (mapFromGlobal(QCursor::pos()));
+    QPointF inPoint = m_last_mouse_position;
+    m_box_started = false; // the first corner, also after a drag cancelled with ESC
 
     m_saved_zoom_strategy = m_zoom_strategy;
     m_saved_select_strategy = m_select_strategy;
@@ -218,7 +242,7 @@ void ChartViewPrivate::rectangleStart()
 
 QPair<QPointF, QPointF> ChartViewPrivate::getCurrentRectangle()
 {
-    QPointF inPoint = mapToPoint(mapFromGlobal(QCursor::pos()));
+    QPointF inPoint = mapToPoint(m_last_mouse_position);
 
     QPointF left, right;
     left.setX(qMin(inPoint.x(), m_rect_start.x()));
@@ -253,6 +277,7 @@ void ChartViewPrivate::updateCorner()
 
 void ChartViewPrivate::mousePressEvent(QMouseEvent* event)
 {
+    trackMouse(event);
     updateCorner();
 
     if (event->button() == Qt::RightButton) {
@@ -428,6 +453,7 @@ void ChartViewPrivate::mouseMoveEvent(QMouseEvent* event)
     if (chart()->axes(Qt::Horizontal).isEmpty() || chart()->axes(Qt::Vertical).isEmpty()) {
         return;
     }
+    trackMouse(event);
 
     if (m_select_pending || m_zoom_pending) {
         QPair<QPointF, QPointF> inPoint = getCurrentRectangle();
@@ -466,6 +492,7 @@ void ChartViewPrivate::updateVerticalLine(double x)
 
 void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
 {
+    trackMouse(event);
     if (event->button() == Qt::MiddleButton) {
         chart()->zoomReset();
         updateZoom();
@@ -473,8 +500,8 @@ void ChartViewPrivate::mouseReleaseEvent(QMouseEvent* event)
     } else if (event->button() == Qt::RightButton) {
         if (m_select_pending) {
             m_single_right_click = false;
+            QPair<QPointF, QPointF> rect = getCurrentRectangle(); // still with the selection strategy
             m_select_pending = false;
-            QPair<QPointF, QPointF> rect = getCurrentRectangle();
 
             if ((m_border_start.x() <= rect.first.x() && m_border_end.x() >= rect.second.x()) || !m_box_bounded) {
                 emit addRect(chart()->mapToValue(rect.first), chart()->mapToValue(rect.second));
@@ -562,6 +589,8 @@ void ChartViewPrivate::keyPressEvent(QKeyEvent* event)
         m_select_pending = false;
         m_single_left_click = false;
         m_single_right_click = false;
+        m_box_started = false;
+        m_box_bounded = false;
         m_select_box->setVisible(false);
         m_zoom_box->setVisible(false);
         m_vertical_line->setVisible(m_vertical_line_visible);

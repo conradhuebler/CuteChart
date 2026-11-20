@@ -233,6 +233,7 @@ parallel dead files (`chartview_pimpl.*`, `chartview_refactored.h`) were left be
 (never in the build). The 2025 pass corrected this.
 
 ### ✅ Done
+- 🤖 ⚙️ **Zoom/selection strategy per operation (2026-11-20)** — `mapToPoint` restricts a rectangle by the strategy of the running drag (selection: select strategy, zoom box: zoom strategy; before, a horizontal select strategy forced every zoom horizontal); rectangles use the event position (`trackMouse`), not `QCursor::pos()`; ESC resets `m_box_started`.
 - **Axis-rescale "freeze" fixed (2026-07-14)** — `qtNiceNumbersScale()` never cleared `m_pending`
   (only `spaceScale()` did), so after any QtNiceNumbers pass the guarded `formatAxis()` latched into
   a permanent no-op and plots stopped rescaling until a new series forced `forceFormatAxis()`.
